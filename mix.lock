@@ -1,0 +1,11 @@
+%{
+  "certifi": {:git, "https://github.com/certifi/erlang-certifi", "e08b12e8993502240c25b78563993776f87ecd2a", [tag: "2.5.1"]},
+  "hackney": {:git, "https://github.com/benoitc/hackney", "7004bb3a1158684d2507662599b7c1db45805abe", []},
+  "ibrowse": {:hex, :ibrowse, "4.4.1", "2b7d0637b0f8b9b4182de4bd0f2e826a4da2c9b04898b6e15659ba921a8d6ec2", [:rebar3], [], "hexpm"},
+  "idna": {:git, "https://github.com/benoitc/erlang-idna", "6cff72747821110169ecfac871b0c69e5064afff", [tag: "6.0.0"]},
+  "metrics": {:git, "https://github.com/benoitc/erlang-metrics", "c6eb4dcf29f9e907539915e2ab996f40c2ec7e8e", [tag: "1.0.1"]},
+  "mimerl": {:git, "https://github.com/benoitc/mimerl", "5a1b22a8fada5b3b40438da00a6923cb87a42bbc", [tag: "1.2.0"]},
+  "parse_trans": {:git, "https://github.com/uwiger/parse_trans.git", "76abb347c3c1d00fb0ccf9e4b43e22b3d2288484", [tag: "3.3.0"]},
+  "ssl_verify_fun": {:git, "https://github.com/deadtrickster/ssl_verify_fun.erl", "c5718226b0b9f3d1a38ef6ca3c3b4c75f53dda92", [tag: "1.1.4"]},
+  "unicode_util_compat": {:git, "https://github.com/benoitc/unicode_util_compat.git", "38d7bc105f51159e8ea3279c40121db9db1e652f", [tag: "0.3.1"]},
+}
