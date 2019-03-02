@@ -3,13 +3,18 @@ defmodule EyepatchTest do
   doctest Eyepatch
   require Logger
 
-  test "test1" do
+  test "connect to ip.xnet.space" do
     url = "http://ip.xnet.space"
     :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
   end
 
-  test "test2" do
+  test "connect to ipv4.xnet.space" do
     url = "http://ipv4.xnet.space"
+    :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+  end
+
+  test "connect to ipv6.xnet.space" do
+    url = "http://ipv6.xnet.space"
     :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
   end
 
