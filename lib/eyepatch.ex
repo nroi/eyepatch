@@ -4,8 +4,6 @@ defmodule Eyepatch do
   # The recommended value for the Resolution Delay is 50 milliseconds.
   @resolution_delay 50
 
-  @dns_timeout 500
-
   # One recommended value for a default [connection attempt] delay is 250 milliseconds.
   @connection_attempt_delay 250
 
@@ -66,7 +64,7 @@ defmodule Eyepatch do
     reply = get_dns_reply()
 
     case reply do
-      {inet6_reply = {:inet6, {:ok, ip_address}}, fallback} ->
+      {inet6_reply = {:inet6, {:ok, _ip_address}}, _fallback} ->
         result = connect(inet6_reply, uri, request_fn)
 
         if is_ok.(result) do
@@ -83,7 +81,7 @@ defmodule Eyepatch do
 
         result
 
-      {{:inet6, {:error, reason}}, fallback = {:fallback, {:inet, result}}} ->
+      {{:inet6, {:error, _reason}}, fallback = {:fallback, {:inet, _result}}} ->
         result = connect_ipv4_fallback(fallback, uri, request_fn)
 
         if is_ok.(result) do
@@ -94,7 +92,7 @@ defmodule Eyepatch do
 
         result
 
-      {inet_reply = {:inet, {:ok, ip_address}}, {:fallback, nil}} ->
+      {inet_reply = {:inet, {:ok, _ip_address}}, {:fallback, nil}} ->
         result = connect(inet_reply, uri, request_fn)
 
         if is_ok.(result) do
@@ -109,7 +107,7 @@ defmodule Eyepatch do
 
   def get_dns_reply(ipv6_has_failed \\ false) do
     receive do
-      {_, {:dns_reply, reply = {:inet, {:ok, ip_address}}}} ->
+      {_, {:dns_reply, reply = {:inet, {:ok, _ip_address}}}} ->
         if ipv6_has_failed do
           Logger.debug("Received inet DNS response after inet6 DNS failure. Will use inet.")
           {reply, {:fallback, nil}}
@@ -122,17 +120,17 @@ defmodule Eyepatch do
           wait_ipv6_or_else(reply)
         end
 
-      {_, {:dns_reply, reply = {:inet6, {:ok, ip_address}}}} ->
+      {_, {:dns_reply, reply = {:inet6, {:ok, _ip_address}}}} ->
         {reply, {:fallback, {:inet, nil}}}
 
-      {_, reply = {:dns_reply, {:inet, {:error, reason}}}} ->
+      {_, {:dns_reply, {:inet, {:error, _reason}}}} ->
         if ipv6_has_failed do
           raise("DNS resolution failed for both inet and inet6.")
         else
           get_dns_reply(true)
         end
 
-      {_, {:dns_reply, {:inet6, {:error, reason}}}} ->
+      {_, {:dns_reply, {:inet6, {:error, _reason}}}} ->
         if ipv6_has_failed do
           raise("DNS resolution failed for both inet and inet6.")
         else
