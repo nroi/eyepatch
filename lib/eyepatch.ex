@@ -31,9 +31,13 @@ defmodule Eyepatch do
     # one another as possible, with the AAAA query made first and
     # immediately followed by the A query.
 
+    Logger.debug("resolve()")
+
     uri = URI.parse(url)
 
     protocols = [:inet6, :inet]
+
+    Logger.debug("Starting dns resolution for both protocols")
 
     Enum.each(protocols, fn protocol ->
       Task.async(fn ->

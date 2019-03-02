@@ -3,19 +3,22 @@ defmodule EyepatchTest do
   doctest Eyepatch
   require Logger
 
-  test "connect to ip.xnet.space" do
-    url = "http://ip.xnet.space"
-    :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
-  end
-
   test "connect to ipv4.xnet.space" do
     url = "http://ipv4.xnet.space"
-    :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+    {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+    Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
+  end
+
+  test "connect to ip.xnet.space" do
+    url = "http://ip.xnet.space"
+    {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+    Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
   test "connect to ipv6.xnet.space" do
     url = "http://ipv6.xnet.space"
-    :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+    {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+    Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
   def request_hackney(uri, ip_address, _protocol, connect_timeout) do
@@ -24,9 +27,8 @@ defmodule EyepatchTest do
     headers = [{"Host", to_string(uri.host)}]
     uri = %URI{uri | host: to_string(ip_address)} |> URI.to_string()
     Logger.debug("Attempt to connect to URI: #{inspect(uri)}")
-    Logger.debug("headers: #{inspect(headers)}")
-    Logger.debug("opts: #{inspect(opts)}")
     {:ok, 200, headers, client} = :hackney.request(:get, uri, headers, "", opts)
+    Logger.debug("success!")
     :ok = :hackney.close(client)
     {:ok, 200, headers, client}
   end
