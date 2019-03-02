@@ -29,7 +29,7 @@ defmodule Eyepatch do
     # one another as possible, with the AAAA query made first and
     # immediately followed by the A query.
 
-    Logger.debug("resolve()")
+    Logger.debug("Attempt to resolve url #{url}")
 
     uri = URI.parse(url)
 

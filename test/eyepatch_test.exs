@@ -3,6 +3,8 @@ defmodule EyepatchTest do
   doctest Eyepatch
   require Logger
 
+  @json_path "https://www.archlinux.org/mirrors/status/json/"
+
   test "connect to ipv4.xnet.space" do
     url = "http://ipv4.xnet.space"
     {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
@@ -20,6 +22,22 @@ defmodule EyepatchTest do
     {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
+
+  test "connect to https://ident.me" do
+    url = "https://ident.me"
+    {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+    Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
+  end
+
+  # test "all mirrors" do
+  #   results = get_mirror_results()
+  #   mirrors = results["urls"]
+  #   Enum.each(mirrors, fn mirror ->
+  #     url = mirror["url"]
+  #     {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+  #     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
+  #   end)
+  # end
 
   def request_hackney(uri, ip_address, _protocol, connect_timeout) do
     ip_address = :inet.ntoa(ip_address)
@@ -49,6 +67,14 @@ defmodule EyepatchTest do
     case response do
       {:ok, _, _, _} -> true
       _ -> false
+    end
+  end
+
+  def get_mirror_results() do
+    with {:ok, 200, _headers, client} <- :hackney.request(:get, @json_path) do
+      with {:ok, body} <- :hackney.body(client) do
+        Jason.decode!(body)
+      end
     end
   end
 end

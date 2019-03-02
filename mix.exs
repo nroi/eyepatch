@@ -23,6 +23,7 @@ defmodule Eyepatch.MixProject do
     [
       {:hackney, "~> 1.15", only: :test},
       {:ibrowse, "~> 4.4", only: :test},
+      {:jason, "~> 1.1", only: :test},
     ]
   end
 end
