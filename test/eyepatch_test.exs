@@ -41,7 +41,10 @@ defmodule EyepatchTest do
 
   def request_hackney(uri, ip_address, _protocol, connect_timeout) do
     ip_address = :inet.ntoa(ip_address)
-    opts = [connect_timeout: connect_timeout]
+    # TODO disabling SSL verification is a workaround made necessary because we connect to IP addresses, not hostnames:
+    # If we supply the string "https://<ip-address>" to hackney, the SSL routine will verify if the certificate has
+    # been issued to <ip-address>, but certificates are issued to host names, not IP addresses.
+    opts = [connect_timeout: connect_timeout, ssl_options: [{:verify, :verify_none}]]
     headers = [{"Host", to_string(uri.host)}]
     uri = %URI{uri | host: to_string(ip_address)} |> URI.to_string()
     Logger.debug("Attempt to connect to URI: #{inspect(uri)}")
