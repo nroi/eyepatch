@@ -29,15 +29,22 @@ defmodule EyepatchTest do
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
-  # test "all mirrors" do
-  #   results = get_mirror_results()
-  #   mirrors = results["urls"]
-  #   Enum.each(mirrors, fn mirror ->
-  #     url = mirror["url"]
-  #     {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
-  #     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
-  #   end)
-  # end
+  test "all mirrors" do
+    results = get_mirror_results()
+    mirrors = results["urls"]
+    http_https_mirrors = Enum.filter(mirrors, fn mirror ->
+      case URI.parse(mirror["url"]) do
+        %URI{scheme: "https"} -> true
+        %URI{scheme: "http"} -> true
+        _ -> false
+      end
+    end)
+    Enum.each(http_https_mirrors, fn mirror ->
+      url = mirror["url"]
+      {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+      Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
+    end)
+  end
 
   def request_hackney(uri, ip_address, _protocol, connect_timeout) do
     ip_address = :inet.ntoa(ip_address)
@@ -48,10 +55,14 @@ defmodule EyepatchTest do
     headers = [{"Host", to_string(uri.host)}]
     uri = %URI{uri | host: to_string(ip_address)} |> URI.to_string()
     Logger.debug("Attempt to connect to URI: #{inspect(uri)}")
-    {:ok, 200, headers, client} = :hackney.request(:get, uri, headers, "", opts)
-    Logger.debug("success!")
-    :ok = :hackney.close(client)
-    {:ok, 200, headers, client}
+    reply = case :hackney.request(:get, uri, headers, "", opts) do
+      {:ok, _, headers, client} ->
+        Logger.debug("success!")
+        :ok = :hackney.close(client)
+      {:error, reason} ->
+        Logger.debug("Error during connect: #{inspect reason}")
+    end
+    reply
   end
 
   def request_ibrowse(uri, ip_address, _protocol, connect_timeout) do
