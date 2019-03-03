@@ -4,6 +4,8 @@ defmodule Eyepatch do
   # The recommended value for the Resolution Delay is 50 milliseconds.
   @resolution_delay 50
 
+  @dns_timeout 3_000
+
   # One recommended value for a default [connection attempt] delay is 250 milliseconds.
   @connection_attempt_delay 250
 
@@ -136,6 +138,9 @@ defmodule Eyepatch do
         else
           get_dns_reply(true)
         end
+
+        after @dns_timeout ->
+          raise("No response received from async tasks within #{@dns_timeout}")
     end
   end
 
