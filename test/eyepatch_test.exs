@@ -30,8 +30,8 @@ defmodule EyepatchTest do
   end
 
   @tag :wip
-  test "relocation" do
-    url = "https://dist-mirror.fem.tu-ilmenau.de/archlinux/"
+  test "connect to https://archlinux.za.mirror.allworldit.com/archlinux/" do
+    url = "https://archlinux.za.mirror.allworldit.com/archlinux/"
     {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
