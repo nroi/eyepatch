@@ -19,13 +19,20 @@ defmodule EyepatchTest do
 
   test "connect to ipv6.xnet.space" do
     url = "http://ipv6.xnet.space"
-    {duration, :ok} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+    {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
   test "connect to https://ident.me" do
     url = "https://ident.me"
-    {duration, :ok} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+    {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+    Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
+  end
+
+  @tag :wip
+  test "relocation" do
+    url = "https://dist-mirror.fem.tu-ilmenau.de/archlinux/"
+    {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
@@ -43,7 +50,7 @@ defmodule EyepatchTest do
     |> Enum.take(15)
     |> Enum.map(fn mirror ->
       url = mirror["url"]
-      {duration, :ok} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+      {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
       Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
       duration
     end)
@@ -60,11 +67,15 @@ defmodule EyepatchTest do
     ipv6_https_mirrors
                 |> Enum.shuffle
                 |> Enum.take(15)
-                |> Enum.map(fn mirror ->
+                |> Enum.each(fn mirror ->
       url = mirror["url"]
-      {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+      {duration, response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
       Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
-      duration
+      if is_ok_hackney(response) do
+        Logger.info("success!")
+      else
+        Logger.info("failure for url #{inspect url}")
+      end
     end)
   end
 
@@ -77,7 +88,8 @@ defmodule EyepatchTest do
     headers = [{"Host", to_string(uri.host)}]
     uri = %URI{uri | host: to_string(ip_address)} |> URI.to_string()
     Logger.debug("Attempt to connect to URI: #{inspect(uri)}")
-    reply = case :hackney.request(:head, uri, headers, "", opts) do
+    reply = :hackney.request(:head, uri, headers, "", opts)
+    case reply do
       {:ok, _, _headers} ->
         Logger.debug("success!")
         # :ok = :hackney.close(client)
@@ -101,8 +113,15 @@ defmodule EyepatchTest do
 
   def is_ok_hackney(response) do
     case response do
-      {:ok, _, _, _} -> true
-      _ -> false
+      {:ok, _, _, _} ->
+        # GET request is ok
+        true
+      {:ok, _, _} ->
+        # HEAD request is ok
+        true
+      other ->
+        Logger.error("Result not ok: #{inspect other}")
+        false
     end
   end
 
