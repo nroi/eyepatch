@@ -72,16 +72,11 @@ defmodule Eyepatch do
       {inet6_reply = {:inet6, {:ok, _ip_address}}, _fallback} ->
         result = connect(inet6_reply, uri, request_fn)
 
-        if is_ok.(result) do
-          Logger.debug(@success_ipv6_msg)
-        else
-          Logger.error(@error_ipv6_fallback_ipv4_msg)
-
-          if is_ok.(result) do
-            Logger.debug(@success_ipv4_msg)
-          else
-            Logger.error("#{@error_ipv4_msg} to #{url}.")
-          end
+        case is_ok.(result) do
+          :ok ->
+            Logger.debug(@success_ipv6_msg)
+          {:error, reason} ->
+            Logger.error("#{@error_ipv6_fallback_ipv4_msg} Error message returned by connector: #{inspect reason}")
         end
 
         result

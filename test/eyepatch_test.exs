@@ -132,13 +132,12 @@ defmodule EyepatchTest do
     case response do
       {:ok, _, _, _} ->
         # GET request is ok
-        true
+        :ok
       {:ok, _, _} ->
         # HEAD request is ok
-        true
+        :ok
       other ->
-        Logger.error("Result not ok: #{inspect other}")
-        false
+        {:error, other}
     end
   end
 
