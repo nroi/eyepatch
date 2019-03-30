@@ -29,7 +29,6 @@ defmodule EyepatchTest do
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
-  @tag :wip
   test "connect to https://archlinux.za.mirror.allworldit.com/archlinux/" do
     url = "https://archlinux.za.mirror.allworldit.com/archlinux/"
     {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
@@ -77,6 +76,24 @@ defmodule EyepatchTest do
         Logger.info("failure for url #{inspect url}")
       end
     end)
+  end
+
+  @tag :wip
+  test "http://www.mirrorservice.org/sites/ftp.archlinux.org/" do
+    url = "http://www.mirrorservice.org/sites/ftp.archlinux.org/"
+    Eyepatch.resolve(url, &request_hackney/4, &is_ok_hackney/1)
+  end
+
+  @tag :wip
+  test "http://archlinux.polymorf.fr/" do
+    url = "http://archlinux.polymorf.fr/"
+    Eyepatch.resolve(url, &request_hackney/4, &is_ok_hackney/1)
+  end
+
+  @tag :wip
+  test "https://mirror.lnx.sk/pub/linux/archlinux/" do
+    url = "https://mirror.lnx.sk/pub/linux/archlinux/"
+    Eyepatch.resolve(url, &request_hackney/4, &is_ok_hackney/1)
   end
 
   def request_hackney(uri, ip_address, _protocol, connect_timeout) do

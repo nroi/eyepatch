@@ -4,7 +4,7 @@ defmodule Eyepatch do
   # The recommended value for the Resolution Delay is 50 milliseconds.
   @resolution_delay 50
 
-  @dns_timeout 3_000
+  @dns_timeout 5_000
 
   # One recommended value for a default [connection attempt] delay is 250 milliseconds.
   # TODO we use a value of 1500 not because we deem this value ideal, but because it's easier to implement.
@@ -18,7 +18,7 @@ defmodule Eyepatch do
   @success_ipv6_msg "Successfully connected via IPv6."
 
   @error_ipv6_fallback_ipv4_msg "Error while attempting to connect via IPv6. Trying IPv4 instead…"
-  @error_ipv4_msg "Error while attempting to connect via IPv4."
+  @error_ipv4_msg "Error while attempting to connect via IPv4"
 
   require Logger
 
@@ -66,7 +66,7 @@ defmodule Eyepatch do
     #   B: We have an IPv6 address. Since many hosts still have buggy implementations of IPv6, we try an IPv4 address
     #      if the connection via IPv6 fails.
 
-    reply = get_dns_reply()
+    reply = get_dns_reply(url)
 
     case reply do
       {inet6_reply = {:inet6, {:ok, _ip_address}}, _fallback} ->
@@ -80,7 +80,7 @@ defmodule Eyepatch do
           if is_ok.(result) do
             Logger.debug(@success_ipv4_msg)
           else
-            Logger.error(@error_ipv4_msg)
+            Logger.error("#{@error_ipv4_msg} to #{url}.")
           end
         end
 
@@ -92,7 +92,7 @@ defmodule Eyepatch do
         if is_ok.(result) do
           Logger.debug(@success_ipv4_msg)
         else
-          Logger.error(@error_ipv4_msg)
+          Logger.error("#{@error_ipv4_msg} to #{url}.")
         end
 
         result
@@ -103,14 +103,14 @@ defmodule Eyepatch do
         if is_ok.(result) do
           Logger.debug(@success_ipv4_msg)
         else
-          Logger.error(@error_ipv4_msg)
+          Logger.error("#{@error_ipv4_msg} to #{url}.")
         end
 
         result
     end
   end
 
-  def get_dns_reply(ipv6_has_failed \\ false) do
+  def get_dns_reply(url, ipv6_has_failed \\ false) do
     receive do
       {_, {:dns_reply, reply = {:inet, {:ok, _ip_address}}}} ->
         if ipv6_has_failed do
@@ -128,22 +128,22 @@ defmodule Eyepatch do
       {_, {:dns_reply, reply = {:inet6, {:ok, _ip_address}}}} ->
         {reply, {:fallback, {:inet, nil}}}
 
-      {_, {:dns_reply, {:inet, {:error, _reason}}}} ->
+      {_, {:dns_reply, {:inet, {:error, reason}}}} ->
         if ipv6_has_failed do
-          raise("DNS resolution failed for both inet and inet6.")
+          raise("DNS resolution for url #{url} failed for both inet and inet6: #{reason}")
         else
-          get_dns_reply(true)
+          get_dns_reply(url, true)
         end
 
-      {_, {:dns_reply, {:inet6, {:error, _reason}}}} ->
+      {_, {:dns_reply, {:inet6, {:error, reason}}}} ->
         if ipv6_has_failed do
-          raise("DNS resolution failed for both inet and inet6.")
+          raise("DNS resolution for url #{url} failed for both inet and inet6: #{reason}")
         else
-          get_dns_reply(true)
+          get_dns_reply(url, true)
         end
 
         after @dns_timeout ->
-          raise("No response received from async tasks within #{@dns_timeout}")
+          raise("Timeout during DNS resoution for #{url}.")
     end
   end
 
