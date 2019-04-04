@@ -6,11 +6,11 @@ defmodule Eyepatch do
 
   @dns_timeout 5_000
 
-  # One recommended value for a default [connection attempt] delay is 250 milliseconds.
+  # "One recommended value for a default [connection attempt] delay is 250 milliseconds."
   # TODO we use a value of 1500 not because we deem this value ideal, but because it's easier to implement.
   # A better happy eyeballs implementation would use a lower value (e.g. the recommended 250 milliseconds), without
   # failing after the connection_attempt_delay has been exceeded: Exceeding the connection_attempt_delay only means
-  # we should start a new attempt in parralel to the current attempt, not that we should consider the
+  # we should start a new attempt in parallel to the current attempt, not that we should consider the
   # current attempt failed.
   @connection_attempt_delay 1500
 
