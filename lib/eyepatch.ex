@@ -75,8 +75,13 @@ defmodule Eyepatch do
         case is_ok.(result) do
           :ok ->
             Logger.debug(@success_ipv6_msg)
+
           {:error, reason} ->
-            Logger.error("#{@error_ipv6_fallback_ipv4_msg} Error message returned by connector: #{inspect reason}")
+            Logger.error(
+              "#{@error_ipv6_fallback_ipv4_msg} Error message returned by connector: #{
+                inspect(reason)
+              }"
+            )
         end
 
         result
@@ -102,6 +107,9 @@ defmodule Eyepatch do
         end
 
         result
+
+      {{:both, {:error, msg}}, _fallback} ->
+        {:error, msg}
     end
   end
 
@@ -125,20 +133,23 @@ defmodule Eyepatch do
 
       {_, {:dns_reply, {:inet, {:error, reason}}}} ->
         if ipv6_has_failed do
-          raise("DNS resolution for url #{url} failed for both inet and inet6: #{reason}")
+          msg = "DNS resolution for url #{url} failed for both inet and inet6: #{reason}"
+          {{:both, {:error, msg}}, nil}
         else
           get_dns_reply(url, true)
         end
 
       {_, {:dns_reply, {:inet6, {:error, reason}}}} ->
         if ipv6_has_failed do
-          raise("DNS resolution for url #{url} failed for both inet and inet6: #{reason}")
+          msg = "DNS resolution for url #{url} failed for both inet and inet6: #{reason}"
+          {{:both, {:error, msg}}, nil}
         else
           get_dns_reply(url, true)
         end
-
-        after @dns_timeout ->
-          raise("Timeout during DNS resoution for #{url}.")
+    after
+      @dns_timeout ->
+        msg = "DNS timeout"
+        {{:both, {:error, msg}}, nil}
     end
   end
 
@@ -186,6 +197,4 @@ defmodule Eyepatch do
     url = "http://ip.xnet.space"
     :timer.tc(__MODULE__, :resolve, [url])
   end
-
-
 end
