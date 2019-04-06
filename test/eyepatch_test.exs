@@ -35,6 +35,7 @@ defmodule EyepatchTest do
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
+  @tag timeout: 300000
   test "random mirrors" do
     mirrors = get_mirror_results()["urls"]
     http_https_mirrors = Enum.filter(mirrors, fn mirror ->
