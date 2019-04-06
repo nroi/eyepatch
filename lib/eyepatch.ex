@@ -69,12 +69,13 @@ defmodule Eyepatch do
     reply = get_dns_reply(url)
 
     case reply do
-      {inet6_reply = {:inet6, {:ok, _ip_address}}, _fallback} ->
+      {inet6_reply = {:inet6, {:ok, _ip_address}}, fallback} ->
         result = connect(inet6_reply, uri, request_fn)
 
-        case is_ok.(result) do
+        final_result = case is_ok.(result) do
           :ok ->
             Logger.debug(@success_ipv6_msg)
+            result
 
           {:error, reason} ->
             Logger.warn(
@@ -82,9 +83,10 @@ defmodule Eyepatch do
                 inspect(reason)
               }"
             )
+            final_result = connect_ipv4_fallback(fallback, uri, request_fn)
         end
 
-        result
+        final_result
 
       {{:inet6, {:error, _reason}}, fallback = {:fallback, {:inet, _result}}} ->
         result = connect_ipv4_fallback(fallback, uri, request_fn)
