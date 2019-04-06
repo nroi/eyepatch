@@ -8,18 +8,19 @@ defmodule EyepatchTest do
   def test_mirrors(mirrors) do
     mirrors
     |> Enum.shuffle
-    # |> Enum.take(15)
+    |> Enum.take(15)
     |> Enum.map(fn mirror ->
       url = mirror["url"]
-      {duration, response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney?/1])
-      Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
+      {duration, response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &check_result_hackney/1])
       {url, {duration, response}}
     end)
   end
 
-  def print_results(results, is_ok?) do
+  def print_results(results) do
     results
-    |> Enum.filter(&(!is_ok?.(&1)))
+    |> Enum.filter(fn {_url, {_duration, result}} ->
+         !is_ok_hackney?(result)
+       end)
     |> Enum.each(fn {url, {duration, result}} ->
       Logger.debug("mirror: #{url}. duration: #{duration}, result: #{inspect result}")
     end)
@@ -27,31 +28,31 @@ defmodule EyepatchTest do
 
   test "connect to ipv4.xnet.space" do
     url = "http://ipv4.xnet.space"
-    {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney?/1])
+    {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &check_result_hackney/1])
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
   test "connect to ip.xnet.space" do
     url = "http://ip.xnet.space"
-    {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney?/1])
+    {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &check_result_hackney/1])
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
   test "connect to ipv6.xnet.space" do
     url = "http://ipv6.xnet.space"
-    {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney?/1])
+    {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &check_result_hackney/1])
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
   test "connect to https://ident.me" do
     url = "https://ident.me"
-    {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney?/1])
+    {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &check_result_hackney/1])
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
   test "connect to https://archlinux.za.mirror.allworldit.com/archlinux/" do
     url = "https://archlinux.za.mirror.allworldit.com/archlinux/"
-    {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney?/1])
+    {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &check_result_hackney/1])
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
@@ -67,7 +68,7 @@ defmodule EyepatchTest do
       end
     end)
     results = test_mirrors(http_https_mirrors)
-    print_results(results, &is_ok_hackney?/1)
+    print_results(results)
   end
 
   test "random_ipv6_https_mirrors" do
@@ -83,17 +84,17 @@ defmodule EyepatchTest do
 
   test "http://www.mirrorservice.org/sites/ftp.archlinux.org/" do
     url = "http://www.mirrorservice.org/sites/ftp.archlinux.org/"
-    Eyepatch.resolve(url, &request_hackney/4, &is_ok_hackney?/1)
+    Eyepatch.resolve(url, &request_hackney/4, &check_result_hackney/1)
   end
 
   test "http://archlinux.polymorf.fr/" do
     url = "http://archlinux.polymorf.fr/"
-    Eyepatch.resolve(url, &request_hackney/4, &is_ok_hackney?/1)
+    Eyepatch.resolve(url, &request_hackney/4, &check_result_hackney/1)
   end
 
   test "https://mirror.lnx.sk/pub/linux/archlinux/" do
     url = "https://mirror.lnx.sk/pub/linux/archlinux/"
-    Eyepatch.resolve(url, &request_hackney/4, &is_ok_hackney?/1)
+    Eyepatch.resolve(url, &request_hackney/4, &check_result_hackney/1)
   end
 
   def request_hackney(uri, ip_address, _protocol, connect_timeout) do
@@ -129,6 +130,13 @@ defmodule EyepatchTest do
   end
 
   def is_ok_hackney?(response) do
+    case check_result_hackney(response) do
+      :ok -> true
+      {:error, _} -> false
+    end
+  end
+
+  def check_result_hackney(response) do
     case response do
       {:ok, _, _, _} ->
         # GET request is ok
