@@ -5,6 +5,18 @@ defmodule EyepatchTest do
 
   @json_path "https://www.archlinux.org/mirrors/status/json/"
 
+  def test_mirrors(mirrors) do
+    mirrors
+    |> Enum.shuffle
+    |> Enum.take(15)
+    |> Enum.map(fn mirror ->
+      url = mirror["url"]
+      {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
+      Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
+      duration
+    end)
+  end
+
   test "connect to ipv4.xnet.space" do
     url = "http://ipv4.xnet.space"
     {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
@@ -45,15 +57,7 @@ defmodule EyepatchTest do
         _ -> false
       end
     end)
-    http_https_mirrors
-    |> Enum.shuffle
-    |> Enum.take(15)
-    |> Enum.map(fn mirror ->
-      url = mirror["url"]
-      {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
-      Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
-      duration
-    end)
+    test_mirrors(http_https_mirrors)
   end
 
   test "random_ipv6_https_mirrors" do
@@ -64,19 +68,7 @@ defmodule EyepatchTest do
         %URI{} -> false
       end
     end)
-    ipv6_https_mirrors
-                |> Enum.shuffle
-                |> Enum.take(15)
-                |> Enum.each(fn mirror ->
-      url = mirror["url"]
-      {duration, response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
-      Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
-      if is_ok_hackney(response) do
-        Logger.info("Successfully connected to #{url}")
-      else
-        Logger.info("failure for url #{inspect url}")
-      end
-    end)
+    test_mirrors(ipv6_https_mirrors)
   end
 
   @tag :wip
