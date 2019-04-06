@@ -35,7 +35,7 @@ defmodule EyepatchTest do
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
-  test "all mirrors" do
+  test "random mirrors" do
     mirrors = get_mirror_results()["urls"]
     http_https_mirrors = Enum.filter(mirrors, fn mirror ->
       case URI.parse(mirror["url"]) do
@@ -55,7 +55,7 @@ defmodule EyepatchTest do
     end)
   end
 
-  test "ipv6_https_mirrors" do
+  test "random_ipv6_https_mirrors" do
     mirrors = get_mirror_results()["urls"]
     ipv6_https_mirrors = Enum.filter(mirrors, fn mirror ->
       mirror["ipv6"] and case URI.parse(mirror["url"]) do
@@ -71,7 +71,7 @@ defmodule EyepatchTest do
       {duration, response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &is_ok_hackney/1])
       Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
       if is_ok_hackney(response) do
-        Logger.info("success!")
+        Logger.info("Successfully connected to #{url}")
       else
         Logger.info("failure for url #{inspect url}")
       end
@@ -108,10 +108,10 @@ defmodule EyepatchTest do
     reply = :hackney.request(:head, uri, headers, "", opts)
     case reply do
       {:ok, _, _headers} ->
-        Logger.debug("success!")
+        Logger.debug("Successfully connected to #{uri}")
         # :ok = :hackney.close(client)
       {:error, reason} ->
-        Logger.debug("Error during connect: #{inspect reason}")
+        Logger.warn("Error while attempting to connect to #{uri}: #{inspect reason}")
     end
     reply
   end

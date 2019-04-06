@@ -17,7 +17,7 @@ defmodule Eyepatch do
   @success_ipv4_msg "Successfully connected via IPv4."
   @success_ipv6_msg "Successfully connected via IPv6."
 
-  @error_ipv6_fallback_ipv4_msg "Error while attempting to connect via IPv6. Trying IPv4 instead…"
+  @error_ipv6_fallback_ipv4_msg "Error while attempting to connect via IPv6. Trying IPv4 instead."
   @error_ipv4_msg "Error while attempting to connect via IPv4"
 
   require Logger
@@ -51,7 +51,7 @@ defmodule Eyepatch do
             {:dns_reply, {protocol, {:ok, ip_address}}}
 
           {:error, reason} ->
-            Logger.error("DNS resolution failed for #{protocol}")
+            Logger.warn("DNS resolution failed for #{protocol} for url #{url}")
             {:dns_reply, {protocol, {:error, reason}}}
         end
       end)
@@ -77,8 +77,8 @@ defmodule Eyepatch do
             Logger.debug(@success_ipv6_msg)
 
           {:error, reason} ->
-            Logger.error(
-              "#{@error_ipv6_fallback_ipv4_msg} Error message returned by connector: #{
+            Logger.warn(
+              "#{@error_ipv6_fallback_ipv4_msg} URL: #{url}. Error message returned by connector: #{
                 inspect(reason)
               }"
             )
