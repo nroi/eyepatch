@@ -27,7 +27,7 @@ defmodule Eyepatch do
   happy eyeballs implementation.
   """
 
-  def resolve(url, request_fn, is_ok) do
+  def resolve(url, request_fn, is_ok?) do
     # When a client has both IPv4 and IPv6 connectivity and is trying to
     # establish a connection with a named host, it needs to send out both
     # AAAA and A DNS queries.  Both queries SHOULD be made as soon after
@@ -72,7 +72,7 @@ defmodule Eyepatch do
       {inet6_reply = {:inet6, {:ok, _ip_address}}, fallback} ->
         result = connect(inet6_reply, uri, request_fn)
 
-        final_result = case is_ok.(result) do
+        final_result = case is_ok?.(result) do
           :ok ->
             Logger.debug(@success_ipv6_msg)
             result
@@ -91,7 +91,7 @@ defmodule Eyepatch do
       {{:inet6, {:error, _reason}}, fallback = {:fallback, {:inet, _result}}} ->
         result = connect_ipv4_fallback(fallback, uri, request_fn)
 
-        if is_ok.(result) do
+        if is_ok?.(result) do
           Logger.debug(@success_ipv4_msg)
         else
           Logger.error("#{@error_ipv4_msg} to #{url}.")
@@ -102,7 +102,7 @@ defmodule Eyepatch do
       {inet_reply = {:inet, {:ok, _ip_address}}, {:fallback, nil}} ->
         result = connect(inet_reply, uri, request_fn)
 
-        if is_ok.(result) do
+        if is_ok?.(result) do
           Logger.debug(@success_ipv4_msg)
         else
           Logger.error("#{@error_ipv4_msg} to #{url}.")
