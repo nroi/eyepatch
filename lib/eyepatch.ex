@@ -42,12 +42,12 @@ defmodule Eyepatch do
 
     Logger.debug("Starting dns resolution for both protocols")
 
-    Enum.each(protocols, fn protocol ->
+    tasks = Enum.map(protocols, fn protocol ->
       Task.async(fn ->
         case :inet.getaddrs(to_charlist(uri.host), protocol) do
           {:ok, [ip_address | _ignored]} ->
             # TODO for now, we just ignore all results except for the first.
-            Logger.debug("Successful DNS resolution for #{protocol}")
+            Logger.debug("Successful DNS resolution for #{protocol}: #{uri.host} -> #{:inet.ntoa(ip_address)}")
             {:dns_reply, {protocol, {:ok, ip_address}}}
 
           {:error, reason} ->
@@ -68,7 +68,7 @@ defmodule Eyepatch do
 
     reply = get_dns_reply(url)
 
-    case reply do
+    final_reply = case reply do
       {inet6_reply = {:inet6, {:ok, _ip_address}}, fallback} ->
         result = connect(inet6_reply, uri, request_fn)
 
@@ -113,6 +113,8 @@ defmodule Eyepatch do
       {{:both, {:error, msg}}, _fallback} ->
         {:error, msg}
     end
+    Enum.each(tasks, fn task -> Task.shutdown(task, :brutal_kill) end)
+    final_reply
   end
 
   def get_dns_reply(url, ipv6_has_failed \\ false) do
@@ -159,6 +161,8 @@ defmodule Eyepatch do
     Logger.debug("Attempt to connect via IPv4, but no fallback exists.")
     # We still haven't received the IPv4 address, but already sent the DNS request.
     receive do
+      {_, {:dns_reply, {:inet, {:error, reason}}}} ->
+        {:error, reason}
       {_, {:dns_reply, inet_reply = {:inet, _ip_address}}} ->
         connect(inet_reply, uri, request_fn)
     end
@@ -202,4 +206,13 @@ defmodule Eyepatch do
       {:error, _reason} -> false
     end
   end
+
+  def flush_all() do
+    receive do
+      _ -> flush_all()
+    after
+      0 -> :ok
+    end
+  end
+
 end

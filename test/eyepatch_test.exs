@@ -128,7 +128,7 @@ defmodule EyepatchTest do
         # protocol is included in the response for logging purposes, so that we can evaluate
         # how often the connection is made via IPv4 and IPv6.
         {:ok, {protocol, ip_address, client, headers}}
-      err = {:error, reason} ->
+      {:error, reason} ->
         Logger.warn("Error while attempting to connect to #{uri}: #{inspect reason}")
         {:error, {protocol, ip_address, reason}}
     end
