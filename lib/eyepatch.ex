@@ -6,6 +6,14 @@ defmodule Eyepatch do
 
   @dns_timeout 5_000
 
+  # TODO make all side-effecting functions (:inet.getaddrs etc.) configurable. This way, we can test all combinations:
+  #   IPv4 DNS doesn't work (timeout, nxdomain, …), IPv6 DNS doesn't either.
+  #   IPv4 DNS doesn't work (timeout, nxdomain, …), IPv6 DNS does.
+  #   IPv4 DNS does work (timeout, nxdomain, …), IPv6 DNS doesn't.
+  #   IPv4 DNS does work (timeout, nxdomain, …), IPv6 DNS does
+  #   IPv4 connect doesn't work, IPv4 does
+  #   etc.
+
   # "One recommended value for a default [connection attempt] delay is 250 milliseconds."
   # TODO we use a value of 1500 not because we deem this value ideal, but because it's easier to implement.
   # A better happy eyeballs implementation would use a lower value (e.g. the recommended 250 milliseconds), without
