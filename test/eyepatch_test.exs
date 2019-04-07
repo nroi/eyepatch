@@ -7,8 +7,8 @@ defmodule EyepatchTest do
 
   def test_mirrors(mirrors) do
     mirrors
-    |> Enum.shuffle
-    |> Enum.take(15)
+    # |> Enum.shuffle
+    # |> Enum.take(15)
     |> Enum.map(fn mirror ->
       url = mirror["url"]
       {duration, response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &check_result_hackney/1])
@@ -17,13 +17,18 @@ defmodule EyepatchTest do
   end
 
   def print_results(results) do
-    results
-    |> Enum.filter(fn {_url, {_duration, result}} ->
-         !is_ok_hackney?(result)
+    {successes, failures} = results
+    |> Enum.sort(fn {url1, _}, {url2, _} -> url1 <= url2 end)
+    |> Enum.split_with(fn {_url, {_duration, result}} ->
+         is_ok_hackney?(result)
        end)
-    |> Enum.each(fn {url, {duration, result}} ->
+    Enum.each(failures, fn {url, {duration, result}} ->
       Logger.debug("mirror: #{url}. duration: #{duration}, result: #{inspect result}")
     end)
+    sum_success = Enum.reduce(successes, 0, fn {_url, {duration, _}}, duration_sum -> duration_sum + duration end)
+    avg_success = sum_success / Enum.count(successes)
+    Logger.debug("Average duration for successful requests: #{avg_success / 1000}")
+    Logger.debug("Got #{Enum.count(successes)} successes, #{Enum.count(failures)} failures.")
   end
 
   test "connect to ipv4.xnet.space" do
