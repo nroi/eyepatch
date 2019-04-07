@@ -26,8 +26,8 @@ defmodule EyepatchTest do
       Logger.debug("mirror: #{url}. duration: #{duration}, result: #{inspect result}")
     end)
     {successes_ipv6, successes_ipv4} = Enum.split_with(successes, fn
-      {_url, {_duration, {:ok, {:inet6, _status, _headers}}}} -> true
-      {_url, {_duration, {:ok, {:inet, _status, _headers}}}} -> false
+      {_url, {_duration, {:ok, {:inet6, _ip_address, _status, _headers}}}} -> true
+      {_url, {_duration, {:ok, {:inet, _ip_address, _status, _headers}}}} -> false
     end)
     sum_success = Enum.reduce(successes, 0, fn {_url, {duration, _}}, duration_sum -> duration_sum + duration end)
     avg_success = sum_success / Enum.count(successes)
@@ -66,8 +66,14 @@ defmodule EyepatchTest do
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
-  @tag :wip
+  test "https://mirrors.tuna.tsinghua.edu.cn/archlinux/" do
+    url = "https://mirrors.tuna.tsinghua.edu.cn/archlinux/"
+    {duration, _response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &check_result_hackney/1])
+    Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
+  end
+
   @tag timeout: 300000
+  @tag :wip
   test "random mirrors" do
     mirrors = get_mirror_results()["urls"]
     http_https_mirrors = Enum.filter(mirrors, fn mirror ->
@@ -121,10 +127,10 @@ defmodule EyepatchTest do
         Logger.debug("Successfully connected to #{uri}")
         # protocol is included in the response for logging purposes, so that we can evaluate
         # how often the connection is made via IPv4 and IPv6.
-        {:ok, {protocol, client, headers}}
+        {:ok, {protocol, ip_address, client, headers}}
       err = {:error, reason} ->
         Logger.warn("Error while attempting to connect to #{uri}: #{inspect reason}")
-        err
+        {:error, {protocol, ip_address, reason}}
     end
   end
 
@@ -142,7 +148,7 @@ defmodule EyepatchTest do
 
   def is_ok_hackney?(response) do
     case check_result_hackney(response) do
-      {:ok, {_protocol, _status, _headers}} -> true
+      {:ok, {_protocol, _ip_address, _status, _headers}} -> true
       {:error, _} -> false
     end
   end
