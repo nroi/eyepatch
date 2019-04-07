@@ -25,10 +25,15 @@ defmodule EyepatchTest do
     Enum.each(failures, fn {url, {duration, result}} ->
       Logger.debug("mirror: #{url}. duration: #{duration}, result: #{inspect result}")
     end)
+    {successes_ipv6, successes_ipv4} = Enum.split_with(successes, fn
+      {_url, {_duration, {:ok, {:inet6, _status, _headers}}}} -> true
+      {_url, {_duration, {:ok, {:inet, _status, _headers}}}} -> false
+    end)
     sum_success = Enum.reduce(successes, 0, fn {_url, {duration, _}}, duration_sum -> duration_sum + duration end)
     avg_success = sum_success / Enum.count(successes)
-    Logger.debug("Average duration for successful requests: #{avg_success / 1000}")
+    Logger.debug("Average duration for successful requests: #{avg_success / 1000} ms.")
     Logger.debug("Got #{Enum.count(successes)} successes, #{Enum.count(failures)} failures.")
+    Logger.debug("Got #{Enum.count(successes_ipv6)} successes over IPv6, #{Enum.count(successes_ipv4)} successes over IPv4.")
   end
 
   test "connect to ipv4.xnet.space" do
