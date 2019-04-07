@@ -40,7 +40,7 @@ defmodule Eyepatch do
 
     protocols = [:inet6, :inet]
 
-    Logger.debug("Starting dns resolution for both protocols")
+    Logger.debug("Starting dns resolution for both protocols for url #{url}")
 
     tasks = Enum.map(protocols, fn protocol ->
       Task.async(fn ->
@@ -117,7 +117,7 @@ defmodule Eyepatch do
     final_reply
   end
 
-  def get_dns_reply(url, ipv6_has_failed \\ false) do
+  def get_dns_reply(url, ipv6_has_failed \\ false, ipv4_has_failed \\ false) do
     receive do
       {_, {:dns_reply, reply = {:inet, {:ok, _ip_address}}}} ->
         if ipv6_has_failed do
@@ -140,11 +140,11 @@ defmodule Eyepatch do
           msg = "DNS resolution for url #{url} failed for both inet and inet6: #{reason}"
           {{:both, {:error, msg}}, nil}
         else
-          get_dns_reply(url, true)
+          get_dns_reply(url, false, true)
         end
 
       {_, {:dns_reply, {:inet6, {:error, reason}}}} ->
-        if ipv6_has_failed do
+        if ipv4_has_failed do
           msg = "DNS resolution for url #{url} failed for both inet and inet6: #{reason}"
           {{:both, {:error, msg}}, nil}
         else
@@ -157,13 +157,18 @@ defmodule Eyepatch do
     end
   end
 
-  def connect_ipv4_fallback({:fallback, {:inet, nil}}, uri, request_fn) do
-    Logger.debug("Attempt to connect via IPv4, but no fallback exists.")
+  def connect_ipv4_fallback(fallback = {:fallback, {:inet, nil}}, uri, request_fn) do
+    Logger.debug("Attempt to connect via IPv4, but no fallback exists yet.")
     # We still haven't received the IPv4 address, but already sent the DNS request.
     receive do
       {_, {:dns_reply, {:inet, {:error, reason}}}} ->
+        Logger.debug("IPv4 failed, too.")
+        {:error, reason}
+      {_, {:dns_reply, {:inet6, {:error, reason}}}} ->
+        Logger.debug("TODO why is this even here? catching an IPv6 response when the function name says IPv4...")
         {:error, reason}
       {_, {:dns_reply, inet_reply = {:inet, _ip_address}}} ->
+        Logger.debug("IPv4 success!")
         connect(inet_reply, uri, request_fn)
     end
   end
