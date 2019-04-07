@@ -73,7 +73,7 @@ defmodule Eyepatch do
         result = connect(inet6_reply, uri, request_fn)
 
         final_result = case check_result.(result) do
-          :ok ->
+          {:ok, _} ->
             Logger.debug(@success_ipv6_msg)
             result
 
@@ -83,7 +83,7 @@ defmodule Eyepatch do
                 inspect(reason)
               }"
             )
-            final_result = connect_ipv4_fallback(fallback, uri, request_fn)
+            connect_ipv4_fallback(fallback, uri, request_fn)
         end
 
         final_result
@@ -156,7 +156,7 @@ defmodule Eyepatch do
   end
 
   def connect_ipv4_fallback({:fallback, {:inet, nil}}, uri, request_fn) do
-    Logger.debug("Attempt to connect via IPv4, but fallback is nil.")
+    Logger.debug("Attempt to connect via IPv4, but no fallback exists.")
     # We still haven't received the IPv4 address, but already sent the DNS request.
     receive do
       {_, {:dns_reply, inet_reply = {:inet, _ip_address}}} ->
@@ -198,7 +198,7 @@ defmodule Eyepatch do
 
   def is_ok?(result, check_result) do
     case check_result.(result) do
-      :ok -> true
+      {:ok, _} -> true
       {:error, _reason} -> false
     end
   end

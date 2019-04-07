@@ -102,7 +102,7 @@ defmodule EyepatchTest do
     Eyepatch.resolve(url, &request_hackney/4, &check_result_hackney/1)
   end
 
-  def request_hackney(uri, ip_address, _protocol, connect_timeout) do
+  def request_hackney(uri, ip_address, protocol, connect_timeout) do
     ip_address = :inet.ntoa(ip_address)
     # TODO disabling SSL verification is a workaround made necessary because we connect to IP addresses, not hostnames:
     # If we supply the string "https://<ip-address>" to hackney, the SSL routine will verify if the certificate has
@@ -111,15 +111,16 @@ defmodule EyepatchTest do
     headers = [{"Host", to_string(uri.host)}]
     uri = %URI{uri | host: to_string(ip_address)} |> URI.to_string()
     Logger.debug("Attempt to connect to URI: #{inspect(uri)}")
-    reply = :hackney.request(:head, uri, headers, "", opts)
-    case reply do
-      {:ok, _, _headers} ->
+    case :hackney.request(:head, uri, headers, "", opts) do
+      {:ok, client, headers} ->
         Logger.debug("Successfully connected to #{uri}")
-        # :ok = :hackney.close(client)
-      {:error, reason} ->
+        # protocol is included in the response for logging purposes, so that we can evaluate
+        # how often the connection is made via IPv4 and IPv6.
+        {:ok, {protocol, client, headers}}
+      err = {:error, reason} ->
         Logger.warn("Error while attempting to connect to #{uri}: #{inspect reason}")
+        err
     end
-    reply
   end
 
   def request_ibrowse(uri, ip_address, _protocol, connect_timeout) do
@@ -136,22 +137,13 @@ defmodule EyepatchTest do
 
   def is_ok_hackney?(response) do
     case check_result_hackney(response) do
-      :ok -> true
+      {:ok, {_protocol, _status, _headers}} -> true
       {:error, _} -> false
     end
   end
 
   def check_result_hackney(response) do
-    case response do
-      {:ok, _, _, _} ->
-        # GET request is ok
-        :ok
-      {:ok, _, _} ->
-        # HEAD request is ok
-        :ok
-      other ->
-        {:error, other}
-    end
+    response
   end
 
   def get_mirror_results() do
