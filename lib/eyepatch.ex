@@ -165,7 +165,7 @@ defmodule Eyepatch do
     end
   end
 
-  def connect_ipv4_fallback(fallback = {:fallback, {:inet, nil}}, uri, request_fn) do
+  def connect_ipv4_fallback({:fallback, {:inet, nil}}, uri, request_fn) do
     Logger.debug("Attempt to connect via IPv4, but no fallback exists yet.")
     # We still haven't received the IPv4 address, but already sent the DNS request.
     receive do
@@ -217,14 +217,6 @@ defmodule Eyepatch do
     case check_result.(result) do
       {:ok, _} -> true
       {:error, _reason} -> false
-    end
-  end
-
-  def flush_all() do
-    receive do
-      _ -> flush_all()
-    after
-      0 -> :ok
     end
   end
 
