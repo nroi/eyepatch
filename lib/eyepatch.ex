@@ -141,7 +141,11 @@ defmodule Eyepatch do
         end
 
       {_, {:dns_reply, reply = {:inet6, {:ok, _ip_address}}}} ->
-        {reply, {:fallback, {:inet, nil}}}
+        inet_fallback = case ipv4_has_failed do
+          true -> :inet_dns_failed
+          false -> nil
+        end
+        {reply, {:fallback, {:inet, inet_fallback}}}
 
       {_, {:dns_reply, {:inet, {:error, reason}}}} ->
         if ipv6_has_failed do
@@ -165,15 +169,18 @@ defmodule Eyepatch do
     end
   end
 
+  def connect_ipv4_fallback({:fallback, {:inet, :inet_dns_failed}}, _uri, _request_ipv4_fn, _request_ipv6_fn) do
+    reason = "Unable to connect via IPv4 since DNS resolution failed."
+    Logger.error(reason)
+    {:error, reason}
+  end
+
   def connect_ipv4_fallback({:fallback, {:inet, nil}}, uri, request_ipv4_fn, request_ipv6_fn) do
     Logger.debug("Attempt to connect via IPv4, but no fallback exists yet.")
     # We still haven't received the IPv4 address, but already sent the DNS request.
     receive do
       {_, {:dns_reply, {:inet, {:error, reason}}}} ->
         Logger.debug("IPv4 failed, too.")
-        {:error, reason}
-      {_, {:dns_reply, {:inet6, {:error, reason}}}} ->
-        Logger.debug("TODO why is this even here? catching an IPv6 response when the function name says IPv4...")
         {:error, reason}
       {_, {:dns_reply, inet_reply = {:inet, _ip_address}}} ->
         Logger.debug("IPv4 success!")
