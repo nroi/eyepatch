@@ -162,10 +162,6 @@ defmodule Eyepatch do
         else
           get_dns_reply(url, true)
         end
-    after
-      @dns_timeout ->
-        msg = "DNS timeout"
-        {{:both, {:error, msg}}, nil}
     end
   end
 
