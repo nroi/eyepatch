@@ -16,7 +16,7 @@ defmodule EyepatchTest do
   def test_mirrors(mirrors) do
     mirrors
     |> Enum.shuffle
-    |> Enum.take(15)
+    # |> Enum.take(15)
     |> Enum.map(fn mirror ->
       url = mirror["url"]
       {duration, response} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &request_hackney/4, &check_result_hackney/1])
@@ -66,6 +66,20 @@ defmodule EyepatchTest do
     url = "https://ident.me"
     {duration, _} = :timer.tc(Eyepatch, :resolve, [url, &request_hackney/4, &request_hackney/4, &check_result_hackney/1])
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
+  end
+
+  @tag timeout: 300000
+  test "random mirrors" do
+    mirrors = get_mirror_results()["urls"]
+    http_https_mirrors = Enum.filter(mirrors, fn mirror ->
+      case URI.parse(mirror["url"]) do
+        %URI{scheme: "https"} -> true
+        %URI{scheme: "http"} -> true
+        _ -> false
+      end
+    end)
+    results = test_mirrors(http_https_mirrors)
+    print_results(results)
   end
 
   @tag :wip
