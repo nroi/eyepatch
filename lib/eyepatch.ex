@@ -6,14 +6,6 @@ defmodule Eyepatch do
 
   @dns_timeout 5_000
 
-  # TODO make all side-effecting functions (:inet.getaddrs etc.) configurable. This way, we can test all combinations:
-  #   IPv4 DNS doesn't work (timeout, nxdomain, …), IPv6 DNS doesn't either.
-  #   IPv4 DNS doesn't work (timeout, nxdomain, …), IPv6 DNS does.
-  #   IPv4 DNS does work (timeout, nxdomain, …), IPv6 DNS doesn't.
-  #   IPv4 DNS does work (timeout, nxdomain, …), IPv6 DNS does
-  #   IPv4 connect doesn't work, IPv4 does
-  #   etc.
-
   # "One recommended value for a default [connection attempt] delay is 250 milliseconds."
   # TODO we use a value of 1500 not because we deem this value ideal, but because it's easier to implement.
   # A better happy eyeballs implementation would use a lower value (e.g. the recommended 250 milliseconds), without
@@ -64,15 +56,6 @@ defmodule Eyepatch do
         end
       end)
     end)
-
-    # two cases:
-    #   A: We have a IPv4 address. That means we have unsuccessfully tried to obtain an IPv6 address within the
-    #      resolution delay. A correct implementation of happy eyeballs would still have a chance of using IPv6,
-    #      in case the IPv4 connection attempts are unsuccessful and we receive an IPv6 address during our
-    #      unsuccessful IPv4 connection attempts. Instead, we just try to connect via IPv4 and return an error
-    #      if that fails.
-    #   B: We have an IPv6 address. Since many hosts still have buggy implementations of IPv6, we try an IPv4 address
-    #      if the connection via IPv6 fails.
 
     reply = get_dns_reply(url)
 
