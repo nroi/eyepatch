@@ -72,8 +72,47 @@ defmodule EyepatchTest do
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
-  @tag timeout: 300000
   @tag :wip
+  test "A record exists, A record exists" do
+    getaddrs = fn
+      _host, :inet ->  {:ok, [{78, 46, 175, 29}]}
+      _host, :inet6 -> {:ok, [{10753, 1272, 3084, 7656, 0, 0, 0, 2}]}
+    end
+    Eyepatch.resolve("url_will_be_ignored", &request_hackney_mock_ok/4, &check_result_hackney/1, getaddrs)
+    Eyepatch.resolve("url_will_be_ignored", &request_hackney_mock_error/4, &check_result_hackney/1, getaddrs)
+  end
+
+  @tag :wip
+  test "A record exists, AAAA record does not exist" do
+    getaddrs = fn
+      _host, :inet ->  {:ok, [{78, 46, 175, 29}]}
+      _host, :inet6 ->  {:error, :nxdomain}
+    end
+    Eyepatch.resolve("url_will_be_ignored", &request_hackney_mock_ok/4, &check_result_hackney/1, getaddrs)
+    Eyepatch.resolve("url_will_be_ignored", &request_hackney_mock_error/4, &check_result_hackney/1, getaddrs)
+  end
+
+  @tag :wip
+  test "A record does not exist, AAAA record exists" do
+    getaddrs = fn
+      _host, :inet -> {:error, :nxdomain}
+      _host, :inet6 -> {:ok, [{10753, 1272, 3084, 7656, 0, 0, 0, 2}]}
+    end
+    Eyepatch.resolve("url_will_be_ignored", &request_hackney_mock_ok/4, &check_result_hackney/1, getaddrs)
+    Eyepatch.resolve("url_will_be_ignored", &request_hackney_mock_error/4, &check_result_hackney/1, getaddrs)
+  end
+
+  @tag :wip
+  test "A record does not exist, AAAA record does not exist" do
+    getaddrs = fn
+      _host, :inet -> {:error, :nxdomain}
+      _host, :inet6 -> {:error, :nxdomain}
+    end
+    Eyepatch.resolve("url_will_be_ignored", &request_hackney_mock_ok/4, &check_result_hackney/1, getaddrs)
+    Eyepatch.resolve("url_will_be_ignored", &request_hackney_mock_error/4, &check_result_hackney/1, getaddrs)
+  end
+
+  @tag timeout: 300000
   test "random mirrors" do
     mirrors = get_mirror_results()["urls"]
     http_https_mirrors = Enum.filter(mirrors, fn mirror ->
@@ -132,6 +171,14 @@ defmodule EyepatchTest do
         Logger.warn("Error while attempting to connect to #{uri}: #{inspect reason}")
         {:error, {protocol, ip_address, reason}}
     end
+  end
+
+  def request_hackney_mock_ok(uri, ip_address, protocol, connect_timeout) do
+    {:ok, {protocol, ip_address, nil, []}}
+  end
+
+  def request_hackney_mock_error(uri, ip_address, protocol, connect_timeout) do
+    {:error, :mock}
   end
 
   def request_ibrowse(uri, ip_address, _protocol, connect_timeout) do
