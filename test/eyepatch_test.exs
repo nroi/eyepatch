@@ -69,6 +69,7 @@ defmodule EyepatchTest do
   end
 
   @tag timeout: 300000
+  @tag :wip
   test "random mirrors" do
     mirrors = get_mirror_results()["urls"]
     http_https_mirrors = Enum.filter(mirrors, fn mirror ->
@@ -82,7 +83,6 @@ defmodule EyepatchTest do
     print_results(results)
   end
 
-  @tag :wip
   test "test all combinations" do
     resolve_ipv4_ok = {:ok, [{78, 46, 175, 29}]}
     resolve_ipv6_ok = {:ok, [{10753, 1272, 3084, 7656, 0, 0, 0, 2}]}
