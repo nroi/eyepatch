@@ -35,7 +35,7 @@ defmodule Eyepatch do
   happy eyeballs implementation.
   """
 
-  def resolve(url, request_fn, check_result) do
+  def resolve(url, request_fn, check_result, getaddrs \\ &:inet.getaddrs/2) do
     # When a client has both IPv4 and IPv6 connectivity and is trying to
     # establish a connection with a named host, it needs to send out both
     # AAAA and A DNS queries.  Both queries SHOULD be made as soon after
@@ -52,7 +52,7 @@ defmodule Eyepatch do
 
     tasks = Enum.map(protocols, fn protocol ->
       Task.async(fn ->
-        case :inet.getaddrs(to_charlist(uri.host), protocol) do
+        case getaddrs.(to_charlist(uri.host), protocol) do
           {:ok, [ip_address | _ignored]} ->
             # TODO for now, we just ignore all results except for the first.
             Logger.debug("Successful DNS resolution for #{protocol}: #{uri.host} -> #{:inet.ntoa(ip_address)}")
