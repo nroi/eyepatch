@@ -35,7 +35,7 @@ defmodule Eyepatch do
   happy eyeballs implementation.
   """
 
-  def resolve(url, request_fn, check_result, getaddrs \\ &:inet.getaddrs/2) do
+  def resolve(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs \\ &:inet.getaddrs/2) do
     # When a client has both IPv4 and IPv6 connectivity and is trying to
     # establish a connection with a named host, it needs to send out both
     # AAAA and A DNS queries.  Both queries SHOULD be made as soon after
@@ -78,7 +78,7 @@ defmodule Eyepatch do
 
     final_reply = case reply do
       {inet6_reply = {:inet6, {:ok, _ip_address}}, fallback} ->
-        result = connect(inet6_reply, uri, request_fn)
+        result = connect(inet6_reply, uri, request_ipv4_fn, request_ipv6_fn)
 
         final_result = case check_result.(result) do
           {:ok, _} ->
@@ -91,13 +91,13 @@ defmodule Eyepatch do
                 inspect(reason)
               }"
             )
-            connect_ipv4_fallback(fallback, uri, request_fn)
+            connect_ipv4_fallback(fallback, uri, request_ipv4_fn, request_ipv6_fn)
         end
 
         final_result
 
       {{:inet6, {:error, _reason}}, fallback = {:fallback, {:inet, _result}}} ->
-        result = connect_ipv4_fallback(fallback, uri, request_fn)
+        result = connect_ipv4_fallback(fallback, uri, request_ipv4_fn, request_ipv6_fn)
 
         if is_ok?(result, check_result) do
           Logger.debug(@success_ipv4_msg)
@@ -108,7 +108,7 @@ defmodule Eyepatch do
         result
 
       {inet_reply = {:inet, {:ok, _ip_address}}, {:fallback, nil}} ->
-        result = connect(inet_reply, uri, request_fn)
+        result = connect(inet_reply, uri, request_ipv4_fn, request_ipv6_fn)
 
         if is_ok?(result, check_result) do
           Logger.debug(@success_ipv4_msg)
@@ -165,7 +165,7 @@ defmodule Eyepatch do
     end
   end
 
-  def connect_ipv4_fallback({:fallback, {:inet, nil}}, uri, request_fn) do
+  def connect_ipv4_fallback({:fallback, {:inet, nil}}, uri, request_ipv4_fn, request_ipv6_fn) do
     Logger.debug("Attempt to connect via IPv4, but no fallback exists yet.")
     # We still haven't received the IPv4 address, but already sent the DNS request.
     receive do
@@ -177,22 +177,25 @@ defmodule Eyepatch do
         {:error, reason}
       {_, {:dns_reply, inet_reply = {:inet, _ip_address}}} ->
         Logger.debug("IPv4 success!")
-        connect(inet_reply, uri, request_fn)
+        connect(inet_reply, uri, request_ipv4_fn, request_ipv6_fn)
     end
   end
 
-  def connect_ipv4_fallback({:fallback, inet_reply = {:inet, _ip_address}}, uri, request_fn) do
-    connect(inet_reply, uri, request_fn)
+  def connect_ipv4_fallback({:fallback, inet_reply = {:inet, _ip_address}}, uri, request_ipv4_fn, request_ipv6_fn) do
+    connect(inet_reply, uri, request_ipv4_fn, request_ipv6_fn)
   end
 
-  def connect({protocol, {:ok, ip_address}}, uri = %URI{}, request_fn)
+  def connect({protocol, {:ok, ip_address}}, uri = %URI{}, request_ipv4_fn, request_ipv6_fn)
       when protocol == :inet or protocol == :inet6 do
-    connect_to_url(uri, ip_address, protocol, request_fn)
+    connect_to_url(uri, ip_address, protocol, request_ipv4_fn, request_ipv6_fn)
   end
 
-  def connect_to_url(uri = %URI{}, ip_address, protocol, request_fn)
-      when protocol == :inet or protocol == :inet6 do
-    request_fn.(uri, ip_address, protocol, @connection_attempt_delay)
+  def connect_to_url(uri = %URI{}, ip_address, protocol = :inet, request_ipv4_fn, request_ipv6_fn) do
+    request_ipv4_fn.(uri, ip_address, protocol, @connection_attempt_delay)
+  end
+
+  def connect_to_url(uri = %URI{}, ip_address, protocol = :inet6, request_ipv4_fn, request_ipv6_fn) do
+    request_ipv6_fn.(uri, ip_address, protocol, @connection_attempt_delay)
   end
 
   # We have already received an IPv4 DNS reply, but there's still a chance for an IPv6 DNS reply to arrive.
