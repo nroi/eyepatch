@@ -1,10 +1,21 @@
 defmodule Eyepatch do
+  use GenServer
+
+  defstruct caller_pid: nil,
+  inet_dns_response: nil,
+  inet6_dns_response: nil,
+  inet_connect_result: nil,
+  inet6_connect_result: nil,
+  uri: nil,
+  request_ipv4_fn: nil,
+  request_ipv6_fn: nil,
+  check_result: nil,
+  getaddrs: nil
+
   # https://tools.ietf.org/html/rfc8305
 
   # The recommended value for the Resolution Delay is 50 milliseconds.
   @resolution_delay 50
-
-  @dns_timeout 5_000
 
   # "One recommended value for a default [connection attempt] delay is 250 milliseconds."
   # TODO we use a value of 1500 not because we deem this value ideal, but because it's easier to implement.
@@ -28,212 +39,214 @@ defmodule Eyepatch do
   """
 
   def resolve(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs \\ &:inet.getaddrs/2) do
+    {:ok, pid} = start_link(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, self())
+    ref = Process.monitor(pid)
+    receive do
+      {:eyepatch, result} ->
+        Logger.debug("#{inspect result}")
+        result
+    end
+  end
+
+  def start_link(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, caller_pid) do
+    state = initial_state(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, caller_pid)
+    GenServer.start_link(__MODULE__, state)
+  end
+
+  defp initial_state(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, caller_pid) do
+    %Eyepatch{
+      inet_dns_response: nil,
+      inet6_dns_response: nil,
+      inet_connect_result: nil,
+      inet6_connect_result: nil,
+      uri: URI.parse(url),
+      request_ipv4_fn: request_ipv4_fn,
+      request_ipv6_fn: request_ipv6_fn,
+      check_result: check_result,
+      getaddrs: getaddrs,
+      caller_pid: caller_pid
+    }
+  end
+
+  def init(state = %Eyepatch{}) do
     # When a client has both IPv4 and IPv6 connectivity and is trying to
     # establish a connection with a named host, it needs to send out both
     # AAAA and A DNS queries.  Both queries SHOULD be made as soon after
     # one another as possible, with the AAAA query made first and
     # immediately followed by the A query.
 
-    Logger.debug("Attempt to resolve url #{url}")
-
-    uri = URI.parse(url)
-
     protocols = [:inet6, :inet]
 
-    Logger.debug("Starting dns resolution for both protocols for url #{url}")
+    Logger.debug("Starting DNS resolution for both protocols for URI #{inspect state.uri}")
 
-    tasks =
-      Enum.map(protocols, fn protocol ->
-        Task.async(fn ->
-          case getaddrs.(to_charlist(uri.host), protocol) do
-            {:ok, [ip_address | _ignored]} ->
-              # TODO for now, we just ignore all results except for the first.
-              Logger.debug(
-                "Successful DNS resolution for #{protocol}: #{uri.host} -> #{
-                  :inet.ntoa(ip_address)
-                }"
-              )
+    Enum.each(protocols, fn protocol ->
+      Task.async(fn ->
+        case state.getaddrs.(to_charlist(state.uri.host), protocol) do
+          {:ok, [ip_address | _ignored]} ->
+            # TODO for now, we just ignore all results except for the first.
+            Logger.debug(
+              "Successful DNS resolution for #{protocol}: #{state.uri.host} -> #{
+                :inet.ntoa(ip_address)
+              }"
+            )
 
-              {:dns_reply, {protocol, {:ok, ip_address}}}
+            {:dns_reply, {protocol, {:ok, ip_address}}}
 
-            {:error, reason} ->
-              Logger.warn("DNS resolution failed for #{protocol} for url #{url}")
-              {:dns_reply, {protocol, {:error, reason}}}
-          end
-        end)
+          {:error, reason} ->
+            Logger.warn("DNS resolution failed for #{protocol} for uri #{state.uri}")
+            {:dns_reply, {protocol, {:error, reason}}}
+        end
       end)
+    end)
+    {:ok, state}
+  end
 
-    reply = get_dns_reply(url)
 
-    final_reply =
-      case reply do
-        {inet6_reply = {:inet6, {:ok, _ip_address}}, fallback} ->
-          result = connect(inet6_reply, uri, request_ipv4_fn, request_ipv6_fn)
+  def handle_info(
+        {_, {:dns_reply, {:inet, {:ok, ip_address}}}},
+        state = %Eyepatch{inet6_dns_response: {:error, _reason}}) do
+    Logger.debug("Received inet DNS response after inet6 DNS failure. Will attempt to connect via inet.")
+    # TODO passing the protocol (:inet) to request_ipv4_fn is redundant, since the protocol is already
+    # part of the functions' name.
+    result = state.request_ipv4_fn.(state.uri, ip_address, :inet, @connection_attempt_delay)
+    case state.check_result.(result) do
+      {:ok, _} ->
+        Logger.debug(@success_ipv4_msg)
+      {:error, reason} ->
+        Logger.error("IPv4 Connection failed, IPv6 DNS failed: We're out of options.")
+    end
+    {:stop, :normal, {state.caller_pid, result}}
+  end
 
-          final_result =
-            case check_result.(result) do
+  def handle_info(
+        {_, {:dns_reply, {:inet, {:ok, ip_address}}}},
+        state = %Eyepatch{inet6_connect_result: {:error, _reason}, inet_connect_result: nil}) do
+    Logger.debug("Received inet DNS response after inet6 connection failure. Will attempt to connect via inet.")
+    result = state.request_ipv4_fn.(state.uri, ip_address, :inet, @connection_attempt_delay)
+    case state.check_result.(result) do
+      {:ok, _} ->
+        Logger.debug(@success_ipv4_msg)
+      {:error, reason} ->
+        Logger.error("IPv4 Connection failed, IPv6 DNS failed: We're out of options.")
+    end
+    {:stop, :normal, {state.caller_pid, result}}
+  end
+
+  def handle_info(
+    {_, {:dns_reply, {:inet, result = {:error, _reason1}}}},
+    state = %Eyepatch{inet6_connect_result: {:error, _reason2}}) do
+    Logger.error("IPv4 DNS failed, IPv6 connection failed: We're out of options.")
+    {:stop, :normal, {state.caller_pid, result}}
+  end
+
+
+  def handle_info(
+        {_, {:dns_reply, {:inet, reply = {:ok, _ip_address}}}},
+        state = %Eyepatch{inet6_dns_response: nil}) do
+    # If a positive A response is received first due to reordering, the client SHOULD
+    # wait a short time for the AAAA response to ensure that preference is
+    # given to IPv6 (it is common for the AAAA response to follow the A
+    # response by a few milliseconds). This delay will be referred to as
+    # the "Resolution Delay".
+    Logger.debug("IPv4 DNS resolution successful: Will connect via IPv4 unless IPv6 succeeds shortly.")
+    :erlang.send_after(@resolution_delay, self(), :inet6_deadline_exceeded)
+    {:noreply, %{state | inet_dns_response: reply}}
+  end
+
+  def handle_info(
+        {_, {:dns_reply, {:inet6, {:error, reason}}}},
+        state = %Eyepatch{inet_dns_response: nil}) do
+    Logger.debug("IPv6 DNS resolution failed: #{reason}. Will wait for IPv4 DNS reply.")
+    {:noreply, %{state | inet6_dns_response: {:error, reason}}}
+  end
+
+  def handle_info(
+        {_, {:dns_reply, {:inet, {:error, reason}}}},
+        state = %Eyepatch{inet6_dns_response: nil}) do
+    Logger.debug("IPv4 DNS resolution failed: #{reason}. Will wait for IPv6 DNS reply.")
+    {:noreply, %{state | inet_dns_response: {:error, reason}}}
+  end
+
+  def handle_info(
+        {_, {:dns_reply, {:inet6, {:error, reason}}}},
+        state = %Eyepatch{inet_dns_response: {:ok, ip_address}, inet_connect_result: nil}) do
+    Logger.debug("IPv6 DNS resolution failed, will attempt to connect via IPv4.")
+    result = state.request_ipv4_fn.(state.uri, ip_address, :inet, @connection_attempt_delay)
+    case state.check_result.(result) do
+      {:ok, _} ->
+        Logger.debug(@success_ipv4_msg)
+      {:error, reason} ->
+        Logger.error("IPv4 connection failed, IPv6 DNS resolution failed: We're out of options.")
+    end
+    {:stop, :normal, {state.caller_pid, result}}
+  end
+
+  def handle_info(
+    {_, {:dns_reply, {:inet, result = {:error, _}}}},
+     state = %Eyepatch{inet6_dns_response: {:error, _}}) do
+    Logger.error("Both IPv4 and IPv6 DNS resolution failed: We're out of options.")
+    {:stop, :normal, {state.caller_pid, result}}
+  end
+
+  def handle_info(
+    {_, {:dns_reply, {:inet6, result = {:error, _}}}},
+    state = %Eyepatch{inet_dns_response: {:error, _}}) do
+    Logger.error("Both IPv4 and IPv6 DNS resolution failed: We're out of options.")
+    {:stop, :normal, {state.caller_pid, result}}
+  end
+
+  def handle_info(:inet6_deadline_exceeded, state = %Eyepatch{inet_dns_response: {:ok, ip_address}}) do
+    Logger.debug("IPv6 DNS has not succeeded within the resolution delay. Will attempt to connect via IPv4.")
+    result = state.request_ipv4_fn.(state.uri, ip_address, :inet, @connection_attempt_delay)
+    case state.check_result.(result) do
+      {:ok, _} ->
+        Logger.debug(@success_ipv4_msg)
+      {:error, reason} ->
+        Logger.error("IPv4 connection failed, IPv6 DNS response not received yet.")
+        # TODO there's still a chance that we receive the inet6 DNS response. Read the RFC to
+        # decide how to handle this case.
+    end
+    {:stop, :normal, {state.caller_pid, result}}
+  end
+
+  def handle_info(
+        {_, {:dns_reply, {:inet6, {:ok, ip_address}}}},
+        state = %Eyepatch{inet6_dns_response: nil}) do
+    Logger.debug("IPv6 DNS resolution successful: Will connect via IPv6.")
+    result = state.request_ipv6_fn.(state.uri, ip_address, :inet6, @connection_attempt_delay)
+    case state.check_result.(result) do
+      {:ok, _} ->
+        Logger.debug("Succesfully connected via IPv6")
+        {:stop, :normal, {state.caller_pid, result}}
+      {:error, reason} ->
+        case {state.inet_dns_response, state.inet_connect_result} do
+          {nil, nil} ->
+            Logger.error("IPv6 Connection failed. Will wait for IPv4 DNS response to connect via IPv4.")
+            {:noreply, %{state | inet6_dns_response: {:ok, ip_address}, inet6_connect_result: {:error, reason}}}
+          {{:ok, ip_address}, nil} ->
+            Logger.error("IPv6 Connection failed. Will attempt to connect via IPv4.")
+            ipv4_result = state.request_ipv4_fn.(state.uri, ip_address, :inet, @connection_attempt_delay)
+            case state.check_result.(ipv4_result) do
               {:ok, _} ->
-                Logger.debug(@success_ipv6_msg)
-                result
-
-              {:error, reason} ->
-                Logger.warn(
-                  "#{@error_ipv6_fallback_ipv4_msg} URL: #{url}. Error message returned by connector: #{
-                    inspect(reason)
-                  }"
-                )
-
-                connect_ipv4_fallback(fallback, uri, request_ipv4_fn, request_ipv6_fn)
+                Logger.debug("Succesfully connected via IPv6.")
+                {:stop, :normal, {state.caller_pid, ipv4_result}}
+              {:error, _reason} ->
+                Logger.debug("IPv4 connection failed after IPv6 connection failed. We're out of options.")
+                {:stop, :normal, {state.caller_pid, ipv4_result}}
             end
-
-          final_result
-
-        {{:inet6, {:error, _reason}}, fallback = {:fallback, {:inet, _result}}} ->
-          result = connect_ipv4_fallback(fallback, uri, request_ipv4_fn, request_ipv6_fn)
-
-          if is_ok?(result, check_result) do
-            Logger.debug(@success_ipv4_msg)
-          else
-            Logger.error("#{@error_ipv4_msg} to #{url}.")
-          end
-
-          result
-
-        {inet_reply = {:inet, {:ok, _ip_address}}, {:fallback, nil}} ->
-          result = connect(inet_reply, uri, request_ipv4_fn, request_ipv6_fn)
-
-          if is_ok?(result, check_result) do
-            Logger.debug(@success_ipv4_msg)
-          else
-            Logger.error("#{@error_ipv4_msg} to #{url}.")
-          end
-
-          result
-
-        {{:both, {:error, msg}}, _fallback} ->
-          {:error, msg}
-      end
-
-    Enum.each(tasks, fn task -> Task.shutdown(task, :brutal_kill) end)
-    final_reply
-  end
-
-  def get_dns_reply(url, ipv6_has_failed \\ false, ipv4_has_failed \\ false) do
-    receive do
-      {_, {:dns_reply, reply = {:inet, {:ok, _ip_address}}}} ->
-        if ipv6_has_failed do
-          Logger.debug("Received inet DNS response after inet6 DNS failure. Will use inet.")
-          {reply, {:fallback, nil}}
-        else
-          # If a positive A response is received first due to reordering, the client SHOULD
-          # wait a short time for the AAAA response to ensure that preference is
-          # given to IPv6 (it is common for the AAAA response to follow the A
-          # response by a few milliseconds). This delay will be referred to as
-          # the "Resolution Delay".
-          wait_ipv6_or_else(reply)
-        end
-
-      {_, {:dns_reply, reply = {:inet6, {:ok, _ip_address}}}} ->
-        inet_fallback =
-          case ipv4_has_failed do
-            true -> :inet_dns_failed
-            false -> nil
-          end
-
-        {reply, {:fallback, {:inet, inet_fallback}}}
-
-      {_, {:dns_reply, {:inet, {:error, reason}}}} ->
-        if ipv6_has_failed do
-          msg = "DNS resolution for url #{url} failed for both inet and inet6: #{reason}"
-          {{:both, {:error, msg}}, nil}
-        else
-          get_dns_reply(url, false, true)
-        end
-
-      {_, {:dns_reply, {:inet6, {:error, reason}}}} ->
-        if ipv4_has_failed do
-          msg = "DNS resolution for url #{url} failed for both inet and inet6: #{reason}"
-          {{:both, {:error, msg}}, nil}
-        else
-          get_dns_reply(url, true)
+          {result = {:error, _}, nil} ->
+            Logger.debug("IPv4 connection failed after IPv6 DNS resolution failed. We're out of options.")
+            {:stop, :normal, {state.caller_pid, result}}
         end
     end
   end
 
-  def connect_ipv4_fallback(
-        {:fallback, {:inet, :inet_dns_failed}},
-        _uri,
-        _request_ipv4_fn,
-        _request_ipv6_fn
-      ) do
-    reason = "Unable to connect via IPv4 since DNS resolution failed."
-    Logger.error(reason)
-    {:error, reason}
+  def handle_info({:DOWN, _ref, :process, _pid, :normal}, state) do
+    {:noreply, state}
   end
 
-  def connect_ipv4_fallback({:fallback, {:inet, nil}}, uri, request_ipv4_fn, request_ipv6_fn) do
-    Logger.debug("Attempt to connect via IPv4, but no fallback exists yet.")
-    # We still haven't received the IPv4 address, but already sent the DNS request.
-    receive do
-      {_, {:dns_reply, {:inet, {:error, reason}}}} ->
-        Logger.debug("IPv4 failed, too.")
-        {:error, reason}
-
-      {_, {:dns_reply, inet_reply = {:inet, _ip_address}}} ->
-        Logger.debug("IPv4 success!")
-        connect(inet_reply, uri, request_ipv4_fn, request_ipv6_fn)
-    end
+  def terminate(reason, {caller_pid, result}) do
+    send(caller_pid, {:eyepatch, result})
   end
 
-  def connect_ipv4_fallback(
-        {:fallback, inet_reply = {:inet, _ip_address}},
-        uri,
-        request_ipv4_fn,
-        request_ipv6_fn
-      ) do
-    connect(inet_reply, uri, request_ipv4_fn, request_ipv6_fn)
-  end
-
-  def connect({protocol, {:ok, ip_address}}, uri = %URI{}, request_ipv4_fn, request_ipv6_fn)
-      when protocol == :inet or protocol == :inet6 do
-    connect_to_url(uri, ip_address, protocol, request_ipv4_fn, request_ipv6_fn)
-  end
-
-  def connect_to_url(uri = %URI{}, ip_address, protocol = :inet, request_ipv4_fn, request_ipv6_fn) do
-    request_ipv4_fn.(uri, ip_address, protocol, @connection_attempt_delay)
-  end
-
-  def connect_to_url(
-        uri = %URI{},
-        ip_address,
-        protocol = :inet6,
-        request_ipv4_fn,
-        request_ipv6_fn
-      ) do
-    request_ipv6_fn.(uri, ip_address, protocol, @connection_attempt_delay)
-  end
-
-  # We have already received an IPv4 DNS reply, but there's still a chance for an IPv6 DNS reply to arrive.
-  def wait_ipv6_or_else(ipv4_reply) do
-    receive do
-      {_, {:dns_reply, reply = {:inet6, {:ok, _ip_address}}}} ->
-        Logger.debug("Received inet6 within resolution delay. Will store inet as fallback.")
-        {reply, {:fallback, ipv4_reply}}
-
-      {_, {:dns_reply, reply = {:inet6, {:error, reason}}}} ->
-        Logger.debug("Failure to resolve IPv6: #{inspect(reason)}. Will use IPv4 instead.")
-        {reply, {:fallback, ipv4_reply}}
-    after
-      @resolution_delay ->
-        Logger.debug("Didn't receive inet6 within resolution delay. Will stick with inet.")
-        {ipv4_reply, {:fallback, nil}}
-    end
-  end
-
-  def is_ok?(result, check_result) do
-    case check_result.(result) do
-      {:ok, _} -> true
-      {:error, _reason} -> false
-    end
-  end
 end
