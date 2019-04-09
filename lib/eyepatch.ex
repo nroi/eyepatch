@@ -113,9 +113,7 @@ defmodule Eyepatch do
       "Received inet DNS response after inet6 DNS failure. Will attempt to connect via inet."
     )
 
-    # TODO passing the protocol (:inet) to request_ipv4_fn is redundant, since the protocol is already
-    # part of the functions' name.
-    result = state.request_ipv4_fn.(state.uri, ip_address, :inet, @connection_attempt_delay)
+    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay)
 
     case state.check_result.(result) do
       {:ok, _} ->
@@ -136,7 +134,7 @@ defmodule Eyepatch do
       "Received inet DNS response after inet6 connection failure. Will attempt to connect via inet."
     )
 
-    result = state.request_ipv4_fn.(state.uri, ip_address, :inet, @connection_attempt_delay)
+    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay)
 
     case state.check_result.(result) do
       {:ok, _} ->
@@ -195,7 +193,7 @@ defmodule Eyepatch do
         state = %Eyepatch{inet_dns_response: {:ok, ip_address}, inet_connect_result: nil}
       ) do
     Logger.debug("IPv6 DNS resolution failed, will attempt to connect via IPv4.")
-    result = state.request_ipv4_fn.(state.uri, ip_address, :inet, @connection_attempt_delay)
+    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay)
 
     case state.check_result.(result) do
       {:ok, _} ->
@@ -232,7 +230,7 @@ defmodule Eyepatch do
       "IPv6 DNS has not succeeded within the resolution delay. Will attempt to connect via IPv4."
     )
 
-    result = state.request_ipv4_fn.(state.uri, ip_address, :inet, @connection_attempt_delay)
+    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay)
 
     case state.check_result.(result) do
       {:ok, _} ->
@@ -252,7 +250,7 @@ defmodule Eyepatch do
         state = %Eyepatch{inet6_dns_response: nil}
       ) do
     Logger.debug("IPv6 DNS resolution successful: Will connect via IPv6.")
-    result = state.request_ipv6_fn.(state.uri, ip_address, :inet6, @connection_attempt_delay)
+    result = state.request_ipv6_fn.(state.uri, ip_address, @connection_attempt_delay)
 
     case state.check_result.(result) do
       {:ok, _} ->
@@ -277,7 +275,7 @@ defmodule Eyepatch do
             Logger.error("IPv6 Connection failed. Will attempt to connect via IPv4.")
 
             ipv4_result =
-              state.request_ipv4_fn.(state.uri, ip_address, :inet, @connection_attempt_delay)
+              state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay)
 
             case state.check_result.(ipv4_result) do
               {:ok, _} ->

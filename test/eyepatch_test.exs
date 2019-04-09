@@ -23,8 +23,8 @@ defmodule EyepatchTest do
       {duration, response} =
         :timer.tc(Eyepatch, :resolve, [
           url,
-          &request_hackney/4,
-          &request_hackney/4,
+          request_hackney_inet(),
+          request_hackney_inet6(),
           &check_result_hackney/1
         ])
 
@@ -97,8 +97,8 @@ defmodule EyepatchTest do
     {duration, _} =
       :timer.tc(Eyepatch, :resolve, [
         url,
-        &request_hackney/4,
-        &request_hackney/4,
+        request_hackney_inet(),
+        request_hackney_inet6(),
         &check_result_hackney/1
       ])
 
@@ -111,8 +111,8 @@ defmodule EyepatchTest do
     {duration, _} =
       :timer.tc(Eyepatch, :resolve, [
         url,
-        &request_hackney/4,
-        &request_hackney/4,
+        request_hackney_inet(),
+        request_hackney_inet6(),
         &check_result_hackney/1
       ])
 
@@ -125,8 +125,8 @@ defmodule EyepatchTest do
     {duration, _} =
       :timer.tc(Eyepatch, :resolve, [
         url,
-        &request_hackney/4,
-        &request_hackney/4,
+        request_hackney_inet(),
+        request_hackney_inet6(),
         &check_result_hackney/1
       ])
 
@@ -139,8 +139,8 @@ defmodule EyepatchTest do
     {duration, _} =
       :timer.tc(Eyepatch, :resolve, [
         url,
-        &request_hackney/4,
-        &request_hackney/4,
+        request_hackney_inet(),
+        request_hackney_inet6(),
         &check_result_hackney/1
       ])
 
@@ -268,6 +268,10 @@ defmodule EyepatchTest do
         {:error, {protocol, ip_address, reason}}
     end
   end
+
+  def request_hackney_inet(), do: &request_hackney(&1, &2, :inet, &3)
+  def request_hackney_inet6(), do: &request_hackney(&1, &2, :inet6, &3)
+
 
   def request_ibrowse(uri, ip_address, _protocol, connect_timeout) do
     ip_address = :inet.ntoa(ip_address)
