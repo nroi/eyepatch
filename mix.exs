@@ -9,7 +9,12 @@ defmodule Eyepatch.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: [coveralls: :test, "coveralls.detail": :test, "coveralls.post": :test, "coveralls.html": :test],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test
+      ]
     ]
   end
 
@@ -26,7 +31,7 @@ defmodule Eyepatch.MixProject do
       {:hackney, "~> 1.15", only: :test},
       {:ibrowse, "~> 4.4", only: :test},
       {:jason, "~> 1.1", only: :test},
-      {:excoveralls, "~> 0.10", only: :test},
+      {:excoveralls, "~> 0.10", only: :test}
     ]
   end
 end

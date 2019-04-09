@@ -42,68 +42,78 @@ defmodule Eyepatch do
 
     Logger.debug("Starting dns resolution for both protocols for url #{url}")
 
-    tasks = Enum.map(protocols, fn protocol ->
-      Task.async(fn ->
-        case getaddrs.(to_charlist(uri.host), protocol) do
-          {:ok, [ip_address | _ignored]} ->
-            # TODO for now, we just ignore all results except for the first.
-            Logger.debug("Successful DNS resolution for #{protocol}: #{uri.host} -> #{:inet.ntoa(ip_address)}")
-            {:dns_reply, {protocol, {:ok, ip_address}}}
+    tasks =
+      Enum.map(protocols, fn protocol ->
+        Task.async(fn ->
+          case getaddrs.(to_charlist(uri.host), protocol) do
+            {:ok, [ip_address | _ignored]} ->
+              # TODO for now, we just ignore all results except for the first.
+              Logger.debug(
+                "Successful DNS resolution for #{protocol}: #{uri.host} -> #{
+                  :inet.ntoa(ip_address)
+                }"
+              )
 
-          {:error, reason} ->
-            Logger.warn("DNS resolution failed for #{protocol} for url #{url}")
-            {:dns_reply, {protocol, {:error, reason}}}
-        end
+              {:dns_reply, {protocol, {:ok, ip_address}}}
+
+            {:error, reason} ->
+              Logger.warn("DNS resolution failed for #{protocol} for url #{url}")
+              {:dns_reply, {protocol, {:error, reason}}}
+          end
+        end)
       end)
-    end)
 
     reply = get_dns_reply(url)
 
-    final_reply = case reply do
-      {inet6_reply = {:inet6, {:ok, _ip_address}}, fallback} ->
-        result = connect(inet6_reply, uri, request_ipv4_fn, request_ipv6_fn)
+    final_reply =
+      case reply do
+        {inet6_reply = {:inet6, {:ok, _ip_address}}, fallback} ->
+          result = connect(inet6_reply, uri, request_ipv4_fn, request_ipv6_fn)
 
-        final_result = case check_result.(result) do
-          {:ok, _} ->
-            Logger.debug(@success_ipv6_msg)
-            result
+          final_result =
+            case check_result.(result) do
+              {:ok, _} ->
+                Logger.debug(@success_ipv6_msg)
+                result
 
-          {:error, reason} ->
-            Logger.warn(
-              "#{@error_ipv6_fallback_ipv4_msg} URL: #{url}. Error message returned by connector: #{
-                inspect(reason)
-              }"
-            )
-            connect_ipv4_fallback(fallback, uri, request_ipv4_fn, request_ipv6_fn)
-        end
+              {:error, reason} ->
+                Logger.warn(
+                  "#{@error_ipv6_fallback_ipv4_msg} URL: #{url}. Error message returned by connector: #{
+                    inspect(reason)
+                  }"
+                )
 
-        final_result
+                connect_ipv4_fallback(fallback, uri, request_ipv4_fn, request_ipv6_fn)
+            end
 
-      {{:inet6, {:error, _reason}}, fallback = {:fallback, {:inet, _result}}} ->
-        result = connect_ipv4_fallback(fallback, uri, request_ipv4_fn, request_ipv6_fn)
+          final_result
 
-        if is_ok?(result, check_result) do
-          Logger.debug(@success_ipv4_msg)
-        else
-          Logger.error("#{@error_ipv4_msg} to #{url}.")
-        end
+        {{:inet6, {:error, _reason}}, fallback = {:fallback, {:inet, _result}}} ->
+          result = connect_ipv4_fallback(fallback, uri, request_ipv4_fn, request_ipv6_fn)
 
-        result
+          if is_ok?(result, check_result) do
+            Logger.debug(@success_ipv4_msg)
+          else
+            Logger.error("#{@error_ipv4_msg} to #{url}.")
+          end
 
-      {inet_reply = {:inet, {:ok, _ip_address}}, {:fallback, nil}} ->
-        result = connect(inet_reply, uri, request_ipv4_fn, request_ipv6_fn)
+          result
 
-        if is_ok?(result, check_result) do
-          Logger.debug(@success_ipv4_msg)
-        else
-          Logger.error("#{@error_ipv4_msg} to #{url}.")
-        end
+        {inet_reply = {:inet, {:ok, _ip_address}}, {:fallback, nil}} ->
+          result = connect(inet_reply, uri, request_ipv4_fn, request_ipv6_fn)
 
-        result
+          if is_ok?(result, check_result) do
+            Logger.debug(@success_ipv4_msg)
+          else
+            Logger.error("#{@error_ipv4_msg} to #{url}.")
+          end
 
-      {{:both, {:error, msg}}, _fallback} ->
-        {:error, msg}
-    end
+          result
+
+        {{:both, {:error, msg}}, _fallback} ->
+          {:error, msg}
+      end
+
     Enum.each(tasks, fn task -> Task.shutdown(task, :brutal_kill) end)
     final_reply
   end
@@ -124,10 +134,12 @@ defmodule Eyepatch do
         end
 
       {_, {:dns_reply, reply = {:inet6, {:ok, _ip_address}}}} ->
-        inet_fallback = case ipv4_has_failed do
-          true -> :inet_dns_failed
-          false -> nil
-        end
+        inet_fallback =
+          case ipv4_has_failed do
+            true -> :inet_dns_failed
+            false -> nil
+          end
+
         {reply, {:fallback, {:inet, inet_fallback}}}
 
       {_, {:dns_reply, {:inet, {:error, reason}}}} ->
@@ -148,7 +160,12 @@ defmodule Eyepatch do
     end
   end
 
-  def connect_ipv4_fallback({:fallback, {:inet, :inet_dns_failed}}, _uri, _request_ipv4_fn, _request_ipv6_fn) do
+  def connect_ipv4_fallback(
+        {:fallback, {:inet, :inet_dns_failed}},
+        _uri,
+        _request_ipv4_fn,
+        _request_ipv6_fn
+      ) do
     reason = "Unable to connect via IPv4 since DNS resolution failed."
     Logger.error(reason)
     {:error, reason}
@@ -161,13 +178,19 @@ defmodule Eyepatch do
       {_, {:dns_reply, {:inet, {:error, reason}}}} ->
         Logger.debug("IPv4 failed, too.")
         {:error, reason}
+
       {_, {:dns_reply, inet_reply = {:inet, _ip_address}}} ->
         Logger.debug("IPv4 success!")
         connect(inet_reply, uri, request_ipv4_fn, request_ipv6_fn)
     end
   end
 
-  def connect_ipv4_fallback({:fallback, inet_reply = {:inet, _ip_address}}, uri, request_ipv4_fn, request_ipv6_fn) do
+  def connect_ipv4_fallback(
+        {:fallback, inet_reply = {:inet, _ip_address}},
+        uri,
+        request_ipv4_fn,
+        request_ipv6_fn
+      ) do
     connect(inet_reply, uri, request_ipv4_fn, request_ipv6_fn)
   end
 
@@ -180,7 +203,13 @@ defmodule Eyepatch do
     request_ipv4_fn.(uri, ip_address, protocol, @connection_attempt_delay)
   end
 
-  def connect_to_url(uri = %URI{}, ip_address, protocol = :inet6, request_ipv4_fn, request_ipv6_fn) do
+  def connect_to_url(
+        uri = %URI{},
+        ip_address,
+        protocol = :inet6,
+        request_ipv4_fn,
+        request_ipv6_fn
+      ) do
     request_ipv6_fn.(uri, ip_address, protocol, @connection_attempt_delay)
   end
 
@@ -201,12 +230,10 @@ defmodule Eyepatch do
     end
   end
 
-
   def is_ok?(result, check_result) do
     case check_result.(result) do
       {:ok, _} -> true
       {:error, _reason} -> false
     end
   end
-
 end
