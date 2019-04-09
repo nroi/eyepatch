@@ -91,7 +91,6 @@ defmodule EyepatchTest do
     )
   end
 
-  @tag :wip
   test "connect to ipv4.xnet.space" do
     url = "http://ipv4.xnet.space"
 
@@ -149,6 +148,7 @@ defmodule EyepatchTest do
   end
 
   @tag timeout: 300_000
+  @tag :wip
   test "random mirrors" do
     mirrors = get_mirror_results()["urls"]
 
@@ -242,10 +242,11 @@ defmodule EyepatchTest do
   end
 
   def request_hackney(uri, ip_address, protocol, connect_timeout) do
-    ip_address = case :inet.ntoa(ip_address) do
-      {:error, :einval} -> raise("Unable to parse ip address: #{inspect ip_address}")
-      x -> x
-    end
+    ip_address =
+      case :inet.ntoa(ip_address) do
+        {:error, :einval} -> raise("Unable to parse ip address: #{inspect(ip_address)}")
+        x -> x
+      end
 
     # TODO disabling SSL verification is a workaround made necessary because we connect to IP addresses, not hostnames:
     # If we supply the string "https://<ip-address>" to hackney, the SSL routine will verify if the certificate has
