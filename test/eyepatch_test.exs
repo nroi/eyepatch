@@ -39,7 +39,19 @@ defmodule EyepatchTest do
     end)
     sum_success = Enum.reduce(successes, 0, fn {_url, {duration, _}}, duration_sum -> duration_sum + duration end)
     avg_success = sum_success / Enum.count(successes)
+    {{min_success, min_url}, {max_success, max_url}} = Enum.reduce(successes, {nil, nil}, fn
+      {url, {duration, _}}, {nil, nil} ->
+        {{duration, url}, {duration, url}}
+      {url, {duration, _}}, {{min_duration, min_url}, {max_duration, max_url}} ->
+        update_min = duration < min_duration
+        new_min = update_min && {duration, url} || {min_duration, min_url}
+        update_max = duration > max_duration
+        new_max = update_max && {duration, url} || {max_duration, max_url}
+        {new_min, new_max}
+    end)
     Logger.debug("Average duration for successful requests: #{avg_success / 1000} ms.")
+    Logger.debug("Minimum duration for successful requests achieved with url #{min_url}: #{min_success / 1000} ms.")
+    Logger.debug("Maximum duration for successful requests achieved with url #{max_url}: #{max_success / 1000} ms.")
     Logger.debug("Got #{Enum.count(successes)} successes, #{Enum.count(failures)} failures.")
     Logger.debug("Got #{Enum.count(successes_ipv6)} successes over IPv6, #{Enum.count(successes_ipv4)} successes over IPv4.")
   end
