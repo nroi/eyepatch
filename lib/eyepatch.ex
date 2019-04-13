@@ -10,7 +10,8 @@ defmodule Eyepatch do
             request_ipv4_fn: nil,
             request_ipv6_fn: nil,
             check_result: nil,
-            getaddrs: nil
+            getaddrs: nil,
+            headers: []
 
   # https://tools.ietf.org/html/rfc8305
 
@@ -38,8 +39,8 @@ defmodule Eyepatch do
   happy eyeballs implementation.
   """
 
-  def resolve(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs \\ &:inet.getaddrs/2) do
-    {:ok, pid} = start_link(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, self())
+  def resolve(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs \\ &:inet.getaddrs/2, headers \\ []) do
+    {:ok, pid} = start_link(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, headers, self())
     ref = Process.monitor(pid)
 
     receive do
@@ -49,14 +50,14 @@ defmodule Eyepatch do
     end
   end
 
-  def start_link(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, caller_pid) do
+  def start_link(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, headers, caller_pid) do
     state =
-      initial_state(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, caller_pid)
+      initial_state(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, headers, caller_pid)
 
     GenServer.start_link(__MODULE__, state)
   end
 
-  defp initial_state(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, caller_pid) do
+  defp initial_state(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, headers, caller_pid) do
     %Eyepatch{
       inet_dns_response: nil,
       inet6_dns_response: nil,
@@ -67,6 +68,7 @@ defmodule Eyepatch do
       request_ipv6_fn: request_ipv6_fn,
       check_result: check_result,
       getaddrs: getaddrs,
+      headers: headers,
       caller_pid: caller_pid
     }
   end
@@ -113,7 +115,7 @@ defmodule Eyepatch do
       "Received inet DNS response after inet6 DNS failure. Will attempt to connect via inet."
     )
 
-    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay)
+    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
     case state.check_result.(result) do
       {:ok, _} ->
@@ -134,7 +136,7 @@ defmodule Eyepatch do
       "Received inet DNS response after inet6 connection failure. Will attempt to connect via inet."
     )
 
-    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay)
+    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
     case state.check_result.(result) do
       {:ok, _} ->
@@ -193,7 +195,7 @@ defmodule Eyepatch do
         state = %Eyepatch{inet_dns_response: {:ok, ip_address}, inet_connect_result: nil}
       ) do
     Logger.debug("IPv6 DNS resolution failed, will attempt to connect via IPv4.")
-    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay)
+    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
     case state.check_result.(result) do
       {:ok, _} ->
@@ -230,7 +232,7 @@ defmodule Eyepatch do
       "IPv6 DNS has not succeeded within the resolution delay. Will attempt to connect via IPv4."
     )
 
-    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay)
+    result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
     case state.check_result.(result) do
       {:ok, _} ->
@@ -250,7 +252,7 @@ defmodule Eyepatch do
         state = %Eyepatch{inet6_dns_response: nil}
       ) do
     Logger.debug("IPv6 DNS resolution successful: Will connect via IPv6.")
-    result = state.request_ipv6_fn.(state.uri, ip_address, @connection_attempt_delay)
+    result = state.request_ipv6_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
     case state.check_result.(result) do
       {:ok, _} ->
@@ -275,7 +277,7 @@ defmodule Eyepatch do
             Logger.error("IPv6 Connection failed. Will attempt to connect via IPv4.")
 
             ipv4_result =
-              state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay)
+              state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
             case state.check_result.(ipv4_result) do
               {:ok, _} ->

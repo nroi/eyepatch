@@ -5,11 +5,11 @@ defmodule EyepatchTest do
 
   @json_path "https://www.archlinux.org/mirrors/status/json/"
 
-  def request_hackney_mock_ok(_uri, ip_address, protocol, _connect_timeout) do
+  def request_hackney_mock_ok(_uri, ip_address, protocol, _connect_timeout, _headers) do
     {:ok, {protocol, ip_address, nil, []}}
   end
 
-  def request_hackney_mock_error(_uri, _ip_address, _protocol, _connect_timeout) do
+  def request_hackney_mock_error(_uri, _ip_address, _protocol, _connect_timeout, _headers) do
     {:error, :mock}
   end
 
@@ -119,6 +119,7 @@ defmodule EyepatchTest do
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
+  @tag :wip
   test "connect to ipv6.xnet.space" do
     url = "http://ipv6.xnet.space"
 
@@ -148,7 +149,6 @@ defmodule EyepatchTest do
   end
 
   @tag timeout: 300_000
-  @tag :wip
   test "random mirrors" do
     mirrors = get_mirror_results()["urls"]
 
@@ -197,13 +197,13 @@ defmodule EyepatchTest do
     ]
 
     requester_ipv4 = [
-      {&request_hackney_mock_ok/4, "Connection attempt over IPv4 successful"},
-      {&request_hackney_mock_error/4, "Connection attempt over IPv4 failed"}
+      {&request_hackney_mock_ok(&1, &2, :inet, &3, &4), "Connection attempt over IPv4 successful"},
+      {&request_hackney_mock_error(&1, &2, :inet, &3, &4), "Connection attempt over IPv4 failed"}
     ]
 
     requester_ipv6 = [
-      {&request_hackney_mock_ok/4, "Connection attempt over IPv6 successful"},
-      {&request_hackney_mock_error/4, "Connection attempt over IPv6 failed"}
+      {&request_hackney_mock_ok(&1, &2, :inet6, &3, &4), "Connection attempt over IPv6 successful"},
+      {&request_hackney_mock_error(&1, &2, :inet6, &3, &4), "Connection attempt over IPv6 failed"}
     ]
 
     combinations =
@@ -241,7 +241,7 @@ defmodule EyepatchTest do
     end)
   end
 
-  def request_hackney(uri, ip_address, protocol, connect_timeout) do
+  def request_hackney(uri, ip_address, protocol, connect_timeout, headers) do
     ip_address =
       case :inet.ntoa(ip_address) do
         {:error, :einval} -> raise("Unable to parse ip address: #{inspect(ip_address)}")
@@ -252,7 +252,7 @@ defmodule EyepatchTest do
     # If we supply the string "https://<ip-address>" to hackney, the SSL routine will verify if the certificate has
     # been issued to <ip-address>, but certificates are issued to host names, not IP addresses.
     opts = [connect_timeout: connect_timeout, ssl_options: [{:verify, :verify_none}]]
-    headers = [{"Host", to_string(uri.host)}]
+    headers = [{"Host", to_string(uri.host)} | headers]
     uri = %URI{uri | host: to_string(ip_address)} |> URI.to_string()
     Logger.debug("Attempt to connect to URI: #{inspect(uri)}")
 
@@ -269,9 +269,8 @@ defmodule EyepatchTest do
     end
   end
 
-  def request_hackney_inet(), do: &request_hackney(&1, &2, :inet, &3)
-  def request_hackney_inet6(), do: &request_hackney(&1, &2, :inet6, &3)
-
+  def request_hackney_inet(), do: &request_hackney(&1, &2, :inet, &3, &4)
+  def request_hackney_inet6(), do: &request_hackney(&1, &2, :inet6, &3, &4)
 
   def request_ibrowse(uri, ip_address, _protocol, connect_timeout) do
     ip_address = :inet.ntoa(ip_address)
