@@ -27,10 +27,7 @@ defmodule Eyepatch do
   @connection_attempt_delay 1500
 
   @success_ipv4_msg "Successfully connected via IPv4."
-  @success_ipv6_msg "Successfully connected via IPv6."
 
-  @error_ipv6_fallback_ipv4_msg "Error while attempting to connect via IPv6. Trying IPv4 instead."
-  @error_ipv4_msg "Error while attempting to connect via IPv4"
 
   require Logger
 
@@ -40,8 +37,7 @@ defmodule Eyepatch do
   """
 
   def resolve(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs \\ &:inet.getaddrs/2, headers \\ []) do
-    {:ok, pid} = start_link(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, headers, self())
-    ref = Process.monitor(pid)
+    {:ok, _pid} = start_link(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, headers, self())
 
     receive do
       {:eyepatch, result} ->
@@ -121,7 +117,7 @@ defmodule Eyepatch do
       {:ok, _} ->
         Logger.debug(@success_ipv4_msg)
 
-      {:error, reason} ->
+      {:error, _reason} ->
         Logger.error("IPv4 Connection failed, IPv6 DNS failed: We're out of options.")
     end
 
@@ -142,7 +138,7 @@ defmodule Eyepatch do
       {:ok, _} ->
         Logger.debug(@success_ipv4_msg)
 
-      {:error, reason} ->
+      {:error, _reason} ->
         Logger.error("IPv4 Connection failed, IPv6 DNS failed: We're out of options.")
     end
 
@@ -191,7 +187,7 @@ defmodule Eyepatch do
   end
 
   def handle_info(
-        {_, {:dns_reply, {:inet6, {:error, reason}}}},
+        {_, {:dns_reply, {:inet6, {:error, _reason}}}},
         state = %Eyepatch{inet_dns_response: {:ok, ip_address}, inet_connect_result: nil}
       ) do
     Logger.debug("IPv6 DNS resolution failed, will attempt to connect via IPv4.")
@@ -201,7 +197,7 @@ defmodule Eyepatch do
       {:ok, _} ->
         Logger.debug(@success_ipv4_msg)
 
-      {:error, reason} ->
+      {:error, _reason} ->
         Logger.error("IPv4 connection failed, IPv6 DNS resolution failed: We're out of options.")
     end
 
@@ -238,7 +234,7 @@ defmodule Eyepatch do
       {:ok, _} ->
         Logger.debug(@success_ipv4_msg)
 
-      {:error, reason} ->
+      {:error, _reason} ->
         Logger.error("IPv4 connection failed, IPv6 DNS response not received yet.")
         # TODO there's still a chance that we receive the inet6 DNS response. Read the RFC to
         # decide how to handle this case.
@@ -306,7 +302,7 @@ defmodule Eyepatch do
     {:noreply, state}
   end
 
-  def terminate(reason, {caller_pid, result}) do
+  def terminate(_reason, {caller_pid, result}) do
     send(caller_pid, {:eyepatch, result})
   end
 end
