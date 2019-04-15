@@ -9,7 +9,6 @@ defmodule Eyepatch do
             uri: nil,
             request_ipv4_fn: nil,
             request_ipv6_fn: nil,
-            check_result: nil,
             getaddrs: nil,
             headers: []
 
@@ -36,8 +35,8 @@ defmodule Eyepatch do
   happy eyeballs implementation.
   """
 
-  def resolve(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs \\ &:inet.getaddrs/2, headers \\ []) do
-    {:ok, _pid} = start_link(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, headers, self())
+  def resolve(url, request_ipv4_fn, request_ipv6_fn, getaddrs \\ &:inet.getaddrs/2, headers \\ []) do
+    {:ok, _pid} = start_link(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, self())
 
     receive do
       {:eyepatch, result} ->
@@ -46,14 +45,14 @@ defmodule Eyepatch do
     end
   end
 
-  def start_link(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, headers, caller_pid) do
+  def start_link(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, caller_pid) do
     state =
-      initial_state(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, headers, caller_pid)
+      initial_state(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, caller_pid)
 
     GenServer.start_link(__MODULE__, state)
   end
 
-  defp initial_state(url, request_ipv4_fn, request_ipv6_fn, check_result, getaddrs, headers, caller_pid) do
+  defp initial_state(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, caller_pid) do
     %Eyepatch{
       inet_dns_response: nil,
       inet6_dns_response: nil,
@@ -62,7 +61,6 @@ defmodule Eyepatch do
       uri: URI.parse(url),
       request_ipv4_fn: request_ipv4_fn,
       request_ipv6_fn: request_ipv6_fn,
-      check_result: check_result,
       getaddrs: getaddrs,
       headers: headers,
       caller_pid: caller_pid
@@ -113,7 +111,7 @@ defmodule Eyepatch do
 
     result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
-    case state.check_result.(result) do
+    case result do
       {:ok, _} ->
         Logger.debug(@success_ipv4_msg)
 
@@ -134,7 +132,7 @@ defmodule Eyepatch do
 
     result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
-    case state.check_result.(result) do
+    case result do
       {:ok, _} ->
         Logger.debug(@success_ipv4_msg)
 
@@ -193,7 +191,7 @@ defmodule Eyepatch do
     Logger.debug("IPv6 DNS resolution failed, will attempt to connect via IPv4.")
     result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
-    case state.check_result.(result) do
+    case result do
       {:ok, _} ->
         Logger.debug(@success_ipv4_msg)
 
@@ -230,7 +228,7 @@ defmodule Eyepatch do
 
     result = state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
-    case state.check_result.(result) do
+    case result do
       {:ok, _} ->
         Logger.debug(@success_ipv4_msg)
 
@@ -250,7 +248,7 @@ defmodule Eyepatch do
     Logger.debug("IPv6 DNS resolution successful: Will connect via IPv6.")
     result = state.request_ipv6_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
-    case state.check_result.(result) do
+    case result do
       {:ok, _} ->
         Logger.debug("Succesfully connected via IPv6")
         {:stop, :normal, {state.caller_pid, result}}
@@ -275,7 +273,7 @@ defmodule Eyepatch do
             ipv4_result =
               state.request_ipv4_fn.(state.uri, ip_address, @connection_attempt_delay, [])
 
-            case state.check_result.(ipv4_result) do
+            case ipv4_result do
               {:ok, _} ->
                 Logger.debug("Succesfully connected via IPv6.")
                 {:stop, :normal, {state.caller_pid, ipv4_result}}

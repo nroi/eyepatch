@@ -24,8 +24,7 @@ defmodule EyepatchTest do
         :timer.tc(Eyepatch, :resolve, [
           url,
           request_hackney_inet(),
-          request_hackney_inet6(),
-          &check_result_hackney/1
+          request_hackney_inet6()
         ])
 
       {url, {duration, response}}
@@ -98,8 +97,7 @@ defmodule EyepatchTest do
       :timer.tc(Eyepatch, :resolve, [
         url,
         request_hackney_inet(),
-        request_hackney_inet6(),
-        &check_result_hackney/1
+        request_hackney_inet6()
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -112,14 +110,12 @@ defmodule EyepatchTest do
       :timer.tc(Eyepatch, :resolve, [
         url,
         request_hackney_inet(),
-        request_hackney_inet6(),
-        &check_result_hackney/1
+        request_hackney_inet6()
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
   end
 
-  @tag :wip
   test "connect to ipv6.xnet.space" do
     url = "http://ipv6.xnet.space"
 
@@ -127,8 +123,7 @@ defmodule EyepatchTest do
       :timer.tc(Eyepatch, :resolve, [
         url,
         request_hackney_inet(),
-        request_hackney_inet6(),
-        &check_result_hackney/1
+        request_hackney_inet6()
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -141,8 +136,7 @@ defmodule EyepatchTest do
       :timer.tc(Eyepatch, :resolve, [
         url,
         request_hackney_inet(),
-        request_hackney_inet6(),
-        &check_result_hackney/1
+        request_hackney_inet6()
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -165,6 +159,7 @@ defmodule EyepatchTest do
     print_results(results)
   end
 
+  @tag :wip
   test "test all combinations" do
     resolve_ipv4_ok = {:ok, [{78, 46, 175, 29}]}
     resolve_ipv6_ok = {:ok, [{10753, 1272, 3084, 7656, 0, 0, 0, 2}]}
@@ -235,13 +230,13 @@ defmodule EyepatchTest do
           "url_will_be_ignored",
           requester_ipv4,
           requester_ipv6,
-          &check_result_hackney/1,
           getaddrs
         )
     end)
   end
 
-  def request_hackney(uri, ip_address, protocol, connect_timeout, headers) do
+  def request_hackney(method, uri, ip_address, protocol, connect_timeout, headers) when method == :get or method == :head do
+    # TODO make use of the 'method' argument.
     ip_address =
       case :inet.ntoa(ip_address) do
         {:error, :einval} -> raise("Unable to parse ip address: #{inspect(ip_address)}")
@@ -256,7 +251,7 @@ defmodule EyepatchTest do
     uri = %URI{uri | host: to_string(ip_address)} |> URI.to_string()
     Logger.debug("Attempt to connect to URI: #{inspect(uri)}")
 
-    case :hackney.request(:head, uri, headers, "", opts) do
+    case :hackney.request(method, uri, headers, "", opts) do
       {:ok, client, headers} ->
         Logger.debug("Successfully connected to #{uri}")
         # protocol is included in the response for logging purposes, so that we can evaluate
@@ -269,8 +264,8 @@ defmodule EyepatchTest do
     end
   end
 
-  def request_hackney_inet(), do: &request_hackney(&1, &2, :inet, &3, &4)
-  def request_hackney_inet6(), do: &request_hackney(&1, &2, :inet6, &3, &4)
+  def request_hackney_inet(), do: &request_hackney(:head, &1, &2, :inet, &3, &4)
+  def request_hackney_inet6(), do: &request_hackney(:head, &1, &2, :inet6, &3, &4)
 
   def request_ibrowse(uri, ip_address, _protocol, connect_timeout) do
     ip_address = :inet.ntoa(ip_address)
@@ -284,14 +279,10 @@ defmodule EyepatchTest do
   end
 
   def is_ok_hackney?(response) do
-    case check_result_hackney(response) do
+    case response do
       {:ok, {_protocol, _ip_address, _status, _headers}} -> true
       {:error, _} -> false
     end
-  end
-
-  def check_result_hackney(response) do
-    response
   end
 
   def get_mirror_results() do
