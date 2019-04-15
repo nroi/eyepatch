@@ -254,7 +254,7 @@ defmodule Eyepatch do
 
     case result do
       {:ok, _} ->
-        Logger.debug("Succesfully connected via IPv6")
+        Logger.debug("Successfully connected via IPv6")
         {:stop, :normal, {state.caller_pid, result}}
 
       {:error, reason} ->
@@ -279,7 +279,7 @@ defmodule Eyepatch do
 
             case ipv4_result do
               {:ok, _} ->
-                Logger.debug("Succesfully connected via IPv6.")
+                Logger.debug("Successfully connected via IPv4.")
                 {:stop, :normal, {state.caller_pid, ipv4_result}}
 
               {:error, _reason} ->
