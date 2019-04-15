@@ -43,6 +43,8 @@ defmodule Eyepatch do
       {:eyepatch, result} ->
         Logger.debug("#{inspect(result)}")
         result
+      after 5_000 ->
+        {:error, :eyepatch_timeout}
     end
   end
 
@@ -59,7 +61,7 @@ defmodule Eyepatch do
       inet6_dns_response: nil,
       inet_connect_result: nil,
       inet6_connect_result: nil,
-      uri: URI.parse(url),
+      uri: URI.parse(to_string(url)),
       request_ipv4_fn: request_ipv4_fn,
       request_ipv6_fn: request_ipv6_fn,
       getaddrs: getaddrs,
