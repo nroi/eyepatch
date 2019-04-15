@@ -36,7 +36,7 @@ defmodule Eyepatch do
   happy eyeballs implementation.
   """
 
-  def resolve(url, request_ipv4_fn, request_ipv6_fn, getaddrs \\ &:inet.getaddrs/2, headers \\ [], connect_timeout \\ nil) do
+  def resolve(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, connect_timeout) do
     {:ok, _pid} = start_link(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, connect_timeout, self())
 
     receive do

@@ -16,7 +16,6 @@ defmodule EyepatchTest do
   def test_mirrors(mirrors) do
     mirrors
     |> Enum.shuffle()
-    # |> Enum.take(15)
     |> Enum.map(fn mirror ->
       url = mirror["url"]
 
@@ -24,7 +23,10 @@ defmodule EyepatchTest do
         :timer.tc(Eyepatch, :resolve, [
           url,
           request_hackney_inet(),
-          request_hackney_inet6()
+          request_hackney_inet6(),
+          &:inet.getaddrs/2,
+          [],
+          nil
         ])
 
       {url, {duration, response}}
@@ -97,7 +99,10 @@ defmodule EyepatchTest do
       :timer.tc(Eyepatch, :resolve, [
         url,
         request_hackney_inet(),
-        request_hackney_inet6()
+        request_hackney_inet6(),
+        &:inet.getaddrs/2,
+        [],
+        nil
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -110,7 +115,10 @@ defmodule EyepatchTest do
       :timer.tc(Eyepatch, :resolve, [
         url,
         request_hackney_inet(),
-        request_hackney_inet6()
+        request_hackney_inet6(),
+        &:inet.getaddrs/2,
+        [],
+        nil
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -123,7 +131,10 @@ defmodule EyepatchTest do
       :timer.tc(Eyepatch, :resolve, [
         url,
         request_hackney_inet(),
-        request_hackney_inet6()
+        request_hackney_inet6(),
+        &:inet.getaddrs/2,
+        [],
+        nil
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -136,7 +147,10 @@ defmodule EyepatchTest do
       :timer.tc(Eyepatch, :resolve, [
         url,
         request_hackney_inet(),
-        request_hackney_inet6()
+        request_hackney_inet6(),
+        &:inet.getaddrs/2,
+        [],
+        nil
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -230,7 +244,9 @@ defmodule EyepatchTest do
           "url_will_be_ignored",
           requester_ipv4,
           requester_ipv6,
-          getaddrs
+          getaddrs,
+          [],
+          nil
         )
     end)
   end
