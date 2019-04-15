@@ -5,11 +5,11 @@ defmodule EyepatchTest do
 
   @json_path "https://www.archlinux.org/mirrors/status/json/"
 
-  def request_hackney_mock_ok(_uri, ip_address, protocol, _connect_timeout, _headers) do
+  def request_hackney_mock_ok(_uri, ip_address, protocol, _connect_timeout, _headers, _pid) do
     {:ok, {protocol, ip_address, nil, []}}
   end
 
-  def request_hackney_mock_error(_uri, _ip_address, _protocol, _connect_timeout, _headers) do
+  def request_hackney_mock_error(_uri, _ip_address, _protocol, _connect_timeout, _headers, _pid) do
     {:error, :mock}
   end
 
@@ -206,13 +206,13 @@ defmodule EyepatchTest do
     ]
 
     requester_ipv4 = [
-      {&request_hackney_mock_ok(&1, &2, :inet, &3, &4), "Connection attempt over IPv4 successful"},
-      {&request_hackney_mock_error(&1, &2, :inet, &3, &4), "Connection attempt over IPv4 failed"}
+      {&request_hackney_mock_ok(&1, &2, :inet, &3, &4, &5), "Connection attempt over IPv4 successful"},
+      {&request_hackney_mock_error(&1, &2, :inet, &3, &4, &5), "Connection attempt over IPv4 failed"}
     ]
 
     requester_ipv6 = [
-      {&request_hackney_mock_ok(&1, &2, :inet6, &3, &4), "Connection attempt over IPv6 successful"},
-      {&request_hackney_mock_error(&1, &2, :inet6, &3, &4), "Connection attempt over IPv6 failed"}
+      {&request_hackney_mock_ok(&1, &2, :inet6, &3, &4, &5), "Connection attempt over IPv6 successful"},
+      {&request_hackney_mock_error(&1, &2, :inet6, &3, &4, &5), "Connection attempt over IPv6 failed"}
     ]
 
     combinations =
@@ -251,7 +251,7 @@ defmodule EyepatchTest do
     end)
   end
 
-  def request_hackney(method, uri, ip_address, protocol, connect_timeout, headers) when method == :get or method == :head do
+  def request_hackney(method, uri, ip_address, protocol, connect_timeout, headers, _pid) when method == :get or method == :head do
     # TODO make use of the 'method' argument.
     ip_address =
       case :inet.ntoa(ip_address) do
@@ -280,8 +280,8 @@ defmodule EyepatchTest do
     end
   end
 
-  def request_hackney_inet(), do: &request_hackney(:head, &1, &2, :inet, &3, &4)
-  def request_hackney_inet6(), do: &request_hackney(:head, &1, &2, :inet6, &3, &4)
+  def request_hackney_inet(), do: &request_hackney(:head, &1, &2, :inet, &3, &4, &5)
+  def request_hackney_inet6(), do: &request_hackney(:head, &1, &2, :inet6, &3, &4, &5)
 
   def request_ibrowse(uri, ip_address, _protocol, connect_timeout) do
     ip_address = :inet.ntoa(ip_address)
