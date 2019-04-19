@@ -41,7 +41,6 @@ defmodule Eyepatch do
 
     receive do
       {:eyepatch, result} ->
-        Logger.debug("#{inspect(result)}")
         result
       after 5_000 ->
         {:error, :eyepatch_timeout}
