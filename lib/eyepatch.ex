@@ -95,7 +95,7 @@ defmodule Eyepatch do
             {:dns_reply, {protocol, {:ok, ip_address}}}
 
           {:error, reason} ->
-            Logger.warn("DNS resolution failed for #{protocol} for uri #{state.uri}")
+            Logger.debug("DNS resolution failed for #{protocol} for uri #{state.uri}")
             {:dns_reply, {protocol, {:error, reason}}}
         end
       end)
