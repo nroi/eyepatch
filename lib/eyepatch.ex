@@ -13,6 +13,8 @@ defmodule Eyepatch do
             headers: [],
             connect_timeout: nil
 
+  @timeout 5000
+
   # https://tools.ietf.org/html/rfc8305
 
   # The recommended value for the Resolution Delay is 50 milliseconds.
@@ -28,7 +30,6 @@ defmodule Eyepatch do
 
   @success_ipv4_msg "Successfully connected via IPv4."
 
-
   require Logger
 
   @moduledoc """
@@ -37,24 +38,61 @@ defmodule Eyepatch do
   """
 
   def resolve(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, connect_timeout) do
-    {:ok, _pid} = start_link(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, connect_timeout, self())
+    {:ok, pid} =
+      start_link(
+        url,
+        request_ipv4_fn,
+        request_ipv6_fn,
+        getaddrs,
+        headers,
+        connect_timeout,
+        self()
+      )
+
+    ref = Process.monitor(pid)
 
     receive do
+      {:DOWN, ^ref, _, _, reason} ->
+        {:error, reason}
+
       {:eyepatch, result} ->
+        Process.demonitor(ref, [:flush])
         result
-      after 5_000 ->
-        {:error, :eyepatch_timeout}
     end
   end
 
-  def start_link(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, connect_timeout, caller_pid) do
+  def start_link(
+        url,
+        request_ipv4_fn,
+        request_ipv6_fn,
+        getaddrs,
+        headers,
+        connect_timeout,
+        caller_pid
+      ) do
     state =
-      initial_state(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, connect_timeout, caller_pid)
+      initial_state(
+        url,
+        request_ipv4_fn,
+        request_ipv6_fn,
+        getaddrs,
+        headers,
+        connect_timeout,
+        caller_pid
+      )
 
     GenServer.start_link(__MODULE__, state)
   end
 
-  defp initial_state(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, connect_timeout, caller_pid) do
+  defp initial_state(
+         url,
+         request_ipv4_fn,
+         request_ipv6_fn,
+         getaddrs,
+         headers,
+         connect_timeout,
+         caller_pid
+       ) do
     %Eyepatch{
       inet_dns_response: nil,
       inet6_dns_response: nil,
@@ -71,6 +109,8 @@ defmodule Eyepatch do
   end
 
   def init(state = %Eyepatch{}) do
+    :erlang.send_after(@timeout, self(), :timeout_exceeded)
+
     # When a client has both IPv4 and IPv6 connectivity and is trying to
     # establish a connection with a named host, it needs to send out both
     # AAAA and A DNS queries.  Both queries SHOULD be made as soon after
@@ -112,7 +152,14 @@ defmodule Eyepatch do
       "Received inet DNS response after inet6 DNS failure. Will attempt to connect via inet."
     )
 
-    result = state.request_ipv4_fn.(state.uri, ip_address, state.connect_timeout || @connection_attempt_delay, state.headers, state.caller_pid)
+    result =
+      state.request_ipv4_fn.(
+        state.uri,
+        ip_address,
+        state.connect_timeout || @connection_attempt_delay,
+        state.headers,
+        state.caller_pid
+      )
 
     case result do
       {:ok, _} ->
@@ -133,7 +180,14 @@ defmodule Eyepatch do
       "Received inet DNS response after inet6 connection failure. Will attempt to connect via inet."
     )
 
-    result = state.request_ipv4_fn.(state.uri, ip_address, state.connect_timeout || @connection_attempt_delay, state.headers, state.caller_pid)
+    result =
+      state.request_ipv4_fn.(
+        state.uri,
+        ip_address,
+        state.connect_timeout || @connection_attempt_delay,
+        state.headers,
+        state.caller_pid
+      )
 
     case result do
       {:ok, _} ->
@@ -192,7 +246,15 @@ defmodule Eyepatch do
         state = %Eyepatch{inet_dns_response: {:ok, ip_address}, inet_connect_result: nil}
       ) do
     Logger.debug("IPv6 DNS resolution failed, will attempt to connect via IPv4.")
-    result = state.request_ipv4_fn.(state.uri, ip_address, state.connect_timeout || @connection_attempt_delay, state.headers, state.caller_pid)
+
+    result =
+      state.request_ipv4_fn.(
+        state.uri,
+        ip_address,
+        state.connect_timeout || @connection_attempt_delay,
+        state.headers,
+        state.caller_pid
+      )
 
     case result do
       {:ok, _} ->
@@ -229,7 +291,14 @@ defmodule Eyepatch do
       "IPv6 DNS has not succeeded within the resolution delay. Will attempt to connect via IPv4."
     )
 
-    result = state.request_ipv4_fn.(state.uri, ip_address, state.connect_timeout || @connection_attempt_delay, state.headers, state.caller_pid)
+    result =
+      state.request_ipv4_fn.(
+        state.uri,
+        ip_address,
+        state.connect_timeout || @connection_attempt_delay,
+        state.headers,
+        state.caller_pid
+      )
 
     case result do
       {:ok, _} ->
@@ -249,7 +318,15 @@ defmodule Eyepatch do
         state = %Eyepatch{inet6_dns_response: nil}
       ) do
     Logger.debug("IPv6 DNS resolution successful: Will connect via IPv6.")
-    result = state.request_ipv6_fn.(state.uri, ip_address, state.connect_timeout || @connection_attempt_delay, state.headers, state.caller_pid)
+
+    result =
+      state.request_ipv6_fn.(
+        state.uri,
+        ip_address,
+        state.connect_timeout || @connection_attempt_delay,
+        state.headers,
+        state.caller_pid
+      )
 
     case result do
       {:ok, _} ->
@@ -274,7 +351,13 @@ defmodule Eyepatch do
             Logger.error("IPv6 Connection failed. Will attempt to connect via IPv4.")
 
             ipv4_result =
-              state.request_ipv4_fn.(state.uri, ip_address, state.connect_timeout || @connection_attempt_delay, state.headers, state.caller_pid)
+              state.request_ipv4_fn.(
+                state.uri,
+                ip_address,
+                state.connect_timeout || @connection_attempt_delay,
+                state.headers,
+                state.caller_pid
+              )
 
             case ipv4_result do
               {:ok, _} ->
@@ -297,6 +380,10 @@ defmodule Eyepatch do
             {:stop, :normal, {state.caller_pid, result}}
         end
     end
+  end
+
+  def handle_info(:timeout_exceeded, state) do
+    {:stop, :normal, {state.caller_pid, :timeout_exceeded}}
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, :normal}, state) do

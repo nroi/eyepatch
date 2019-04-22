@@ -206,13 +206,17 @@ defmodule EyepatchTest do
     ]
 
     requester_ipv4 = [
-      {&request_hackney_mock_ok(&1, &2, :inet, &3, &4, &5), "Connection attempt over IPv4 successful"},
-      {&request_hackney_mock_error(&1, &2, :inet, &3, &4, &5), "Connection attempt over IPv4 failed"}
+      {&request_hackney_mock_ok(&1, &2, :inet, &3, &4, &5),
+       "Connection attempt over IPv4 successful"},
+      {&request_hackney_mock_error(&1, &2, :inet, &3, &4, &5),
+       "Connection attempt over IPv4 failed"}
     ]
 
     requester_ipv6 = [
-      {&request_hackney_mock_ok(&1, &2, :inet6, &3, &4, &5), "Connection attempt over IPv6 successful"},
-      {&request_hackney_mock_error(&1, &2, :inet6, &3, &4, &5), "Connection attempt over IPv6 failed"}
+      {&request_hackney_mock_ok(&1, &2, :inet6, &3, &4, &5),
+       "Connection attempt over IPv6 successful"},
+      {&request_hackney_mock_error(&1, &2, :inet6, &3, &4, &5),
+       "Connection attempt over IPv6 failed"}
     ]
 
     combinations =
@@ -251,7 +255,8 @@ defmodule EyepatchTest do
     end)
   end
 
-  def request_hackney(method, uri, ip_address, protocol, connect_timeout, headers, _pid) when method == :get or method == :head do
+  def request_hackney(method, uri, ip_address, protocol, connect_timeout, headers, _pid)
+      when method == :get or method == :head do
     # TODO make use of the 'method' argument.
     ip_address =
       case :inet.ntoa(ip_address) do
