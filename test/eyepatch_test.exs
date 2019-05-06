@@ -257,7 +257,6 @@ defmodule EyepatchTest do
 
   def request_hackney(method, uri, ip_address, protocol, connect_timeout, headers, _pid)
       when method == :get or method == :head do
-    # TODO make use of the 'method' argument.
     ip_address =
       case :inet.ntoa(ip_address) do
         {:error, :einval} -> raise("Unable to parse ip address: #{inspect(ip_address)}")
