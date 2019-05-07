@@ -302,6 +302,7 @@ defmodule EyepatchTest do
     case response do
       {:ok, {_protocol, _ip_address, _status, _headers}} -> true
       {:error, _} -> false
+      :timeout_exceeded -> false
     end
   end
 
