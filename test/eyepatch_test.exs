@@ -5,11 +5,11 @@ defmodule EyepatchTest do
 
   @json_path "https://www.archlinux.org/mirrors/status/json/"
 
-  def request_hackney_mock_ok(_uri, ip_address, protocol, _connect_timeout, _pid) do
+  def request_hackney_mock_ok(_uri, ip_address, protocol, connection_attempt_delay, _pid) do
     {:ok, {protocol, ip_address, nil, []}}
   end
 
-  def request_hackney_mock_error(_uri, _ip_address, _protocol, _connect_timeout, _pid) do
+  def request_hackney_mock_error(_uri, _ip_address, _protocol, connection_attempt_delay, _pid) do
     {:error, :mock}
   end
 
@@ -25,7 +25,6 @@ defmodule EyepatchTest do
           request_hackney_inet(),
           request_hackney_inet6(),
           &:inet.getaddrs/2,
-          nil,
           &transfer_ownership_to_noop/2
         ])
 
@@ -111,7 +110,6 @@ defmodule EyepatchTest do
         request_hackney_inet(),
         request_hackney_inet6(),
         &:inet.getaddrs/2,
-        nil,
         &transfer_ownership_to_noop/2
       ])
 
@@ -127,7 +125,6 @@ defmodule EyepatchTest do
         request_hackney_inet(),
         request_hackney_inet6(),
         &:inet.getaddrs/2,
-        nil,
         &transfer_ownership_to_noop/2
       ])
 
@@ -143,7 +140,6 @@ defmodule EyepatchTest do
         request_hackney_inet(),
         request_hackney_inet6(),
         &:inet.getaddrs/2,
-        nil,
         &transfer_ownership_to_noop/2
       ])
 
@@ -160,7 +156,6 @@ defmodule EyepatchTest do
         connect_hackney_inet(),
         connect_hackney_inet6(),
         &:inet.getaddrs/2,
-        nil,
         &transfer_ownership_to_hackney/2
       ])
 
@@ -186,7 +181,6 @@ defmodule EyepatchTest do
         request_hackney_inet(),
         request_hackney_inet6(),
         &:inet.getaddrs/2,
-        nil,
         &transfer_ownership_to_noop/2
       ])
 
@@ -286,7 +280,6 @@ defmodule EyepatchTest do
           requester_ipv4,
           requester_ipv6,
           getaddrs,
-          nil,
           &transfer_ownership_to_noop/2
         )
     end)

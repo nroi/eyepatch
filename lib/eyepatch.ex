@@ -10,7 +10,6 @@ defmodule Eyepatch do
             request_ipv4_fn: nil,
             request_ipv6_fn: nil,
             getaddrs: nil,
-            connect_timeout: nil,
             transfer_ownership_to: nil
 
   @timeout 5000
@@ -37,14 +36,13 @@ defmodule Eyepatch do
   happy eyeballs implementation.
   """
 
-  def resolve(url, request_ipv4_fn, request_ipv6_fn, getaddrs, connect_timeout, transfer_ownership_to) do
+  def resolve(url, request_ipv4_fn, request_ipv6_fn, getaddrs, transfer_ownership_to) do
     {:ok, pid} =
       start_link(
         url,
         request_ipv4_fn,
         request_ipv6_fn,
         getaddrs,
-        connect_timeout,
         transfer_ownership_to,
         self()
       )
@@ -66,7 +64,6 @@ defmodule Eyepatch do
         request_ipv4_fn,
         request_ipv6_fn,
         getaddrs,
-        connect_timeout,
         transfer_ownership_to,
         caller_pid
       ) do
@@ -76,7 +73,6 @@ defmodule Eyepatch do
         request_ipv4_fn,
         request_ipv6_fn,
         getaddrs,
-        connect_timeout,
         transfer_ownership_to,
         caller_pid
       )
@@ -89,7 +85,6 @@ defmodule Eyepatch do
          request_ipv4_fn,
          request_ipv6_fn,
          getaddrs,
-         connect_timeout,
          transfer_ownership_to,
          caller_pid
        ) do
@@ -102,7 +97,6 @@ defmodule Eyepatch do
       request_ipv4_fn: request_ipv4_fn,
       request_ipv6_fn: request_ipv6_fn,
       getaddrs: getaddrs,
-      connect_timeout: connect_timeout,
       transfer_ownership_to: transfer_ownership_to,
       caller_pid: caller_pid
     }
@@ -156,7 +150,7 @@ defmodule Eyepatch do
       state.request_ipv4_fn.(
         state.uri,
         ip_address,
-        state.connect_timeout || @connection_attempt_delay,
+        @connection_attempt_delay,
         state.caller_pid
       )
 
@@ -183,7 +177,7 @@ defmodule Eyepatch do
       state.request_ipv4_fn.(
         state.uri,
         ip_address,
-        state.connect_timeout || @connection_attempt_delay,
+        @connection_attempt_delay,
         state.caller_pid
       )
 
@@ -205,7 +199,6 @@ defmodule Eyepatch do
     Logger.error("IPv4 DNS failed, IPv6 connection failed: We're out of options.")
     {:stop, :normal, {state.caller_pid, state.transfer_ownership_to, result}}
   end
-
   def handle_info(
         {_, {:dns_reply, {:inet, reply = {:ok, _ip_address}}}},
         state = %Eyepatch{inet6_dns_response: nil}
@@ -249,7 +242,7 @@ defmodule Eyepatch do
       state.request_ipv4_fn.(
         state.uri,
         ip_address,
-        state.connect_timeout || @connection_attempt_delay,
+        @connection_attempt_delay,
         state.caller_pid
       )
 
@@ -292,7 +285,7 @@ defmodule Eyepatch do
       state.request_ipv4_fn.(
         state.uri,
         ip_address,
-        state.connect_timeout || @connection_attempt_delay,
+        @connection_attempt_delay,
         state.caller_pid
       )
 
@@ -319,7 +312,7 @@ defmodule Eyepatch do
       state.request_ipv6_fn.(
         state.uri,
         ip_address,
-        state.connect_timeout || @connection_attempt_delay,
+        @connection_attempt_delay,
         state.caller_pid
       )
 
@@ -349,7 +342,7 @@ defmodule Eyepatch do
               state.request_ipv4_fn.(
                 state.uri,
                 ip_address,
-                state.connect_timeout || @connection_attempt_delay,
+                @connection_attempt_delay,
                 state.caller_pid
               )
 
