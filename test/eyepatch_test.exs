@@ -27,7 +27,7 @@ defmodule EyepatchTest do
           &:inet.getaddrs/2,
           [],
           nil,
-          &change_ownership_noop/2
+          &transfer_ownership_to_noop/2
         ])
 
       {url, {duration, response}}
@@ -93,13 +93,13 @@ defmodule EyepatchTest do
     )
   end
 
-  def change_ownership_noop(_pid, _result), do: :ok
+  def transfer_ownership_to_noop(_pid, _result), do: :ok
 
-  def change_ownership_hackney(pid, {:ok, {_protocol, conn_ref}}) do
+  def transfer_ownership_to_hackney(pid, {:ok, {_protocol, conn_ref}}) do
     :ok = :hackney.controlling_process(conn_ref, pid)
   end
 
-  def change_ownership_hackney(_pid, {:error, _}) do
+  def transfer_ownership_to_hackney(_pid, {:error, _}) do
     :ok
   end
 
@@ -114,7 +114,7 @@ defmodule EyepatchTest do
         &:inet.getaddrs/2,
         [],
         nil,
-        &change_ownership_noop/2
+        &transfer_ownership_to_noop/2
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -131,7 +131,7 @@ defmodule EyepatchTest do
         &:inet.getaddrs/2,
         [],
         nil,
-        &change_ownership_noop/2
+        &transfer_ownership_to_noop/2
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -148,7 +148,7 @@ defmodule EyepatchTest do
         &:inet.getaddrs/2,
         [],
         nil,
-        &change_ownership_noop/2
+        &transfer_ownership_to_noop/2
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -166,7 +166,7 @@ defmodule EyepatchTest do
         &:inet.getaddrs/2,
         [],
         nil,
-        &change_ownership_hackney/2
+        &transfer_ownership_to_hackney/2
       ])
 
     {:ok, {_protocol, conn_ref}} = result
@@ -193,7 +193,7 @@ defmodule EyepatchTest do
         &:inet.getaddrs/2,
         [],
         nil,
-        &change_ownership_noop/2
+        &transfer_ownership_to_noop/2
       ])
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -294,7 +294,7 @@ defmodule EyepatchTest do
           getaddrs,
           [],
           nil,
-          &change_ownership_noop/2
+          &transfer_ownership_to_noop/2
         )
     end)
   end
