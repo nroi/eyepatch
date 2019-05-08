@@ -11,7 +11,8 @@ defmodule Eyepatch do
             request_ipv6_fn: nil,
             getaddrs: nil,
             headers: [],
-            connect_timeout: nil
+            connect_timeout: nil,
+            change_ownership: nil
 
   @timeout 5000
 
@@ -37,7 +38,7 @@ defmodule Eyepatch do
   happy eyeballs implementation.
   """
 
-  def resolve(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, connect_timeout) do
+  def resolve(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, connect_timeout, change_ownership) do
     {:ok, pid} =
       start_link(
         url,
@@ -46,6 +47,7 @@ defmodule Eyepatch do
         getaddrs,
         headers,
         connect_timeout,
+        change_ownership,
         self()
       )
 
@@ -68,6 +70,7 @@ defmodule Eyepatch do
         getaddrs,
         headers,
         connect_timeout,
+        change_ownership,
         caller_pid
       ) do
     state =
@@ -78,6 +81,7 @@ defmodule Eyepatch do
         getaddrs,
         headers,
         connect_timeout,
+        change_ownership,
         caller_pid
       )
 
@@ -91,6 +95,7 @@ defmodule Eyepatch do
          getaddrs,
          headers,
          connect_timeout,
+         change_ownership,
          caller_pid
        ) do
     %Eyepatch{
@@ -104,6 +109,7 @@ defmodule Eyepatch do
       getaddrs: getaddrs,
       headers: headers,
       connect_timeout: connect_timeout,
+      change_ownership: change_ownership,
       caller_pid: caller_pid
     }
   end
@@ -169,7 +175,7 @@ defmodule Eyepatch do
         Logger.error("IPv4 Connection failed, IPv6 DNS failed: We're out of options.")
     end
 
-    {:stop, :normal, {state.caller_pid, result}}
+    {:stop, :normal, {state.caller_pid, state.change_ownership, result}}
   end
 
   def handle_info(
@@ -197,7 +203,7 @@ defmodule Eyepatch do
         Logger.error("IPv4 Connection failed, IPv6 DNS failed: We're out of options.")
     end
 
-    {:stop, :normal, {state.caller_pid, result}}
+    {:stop, :normal, {state.caller_pid, state.change_ownership, result}}
   end
 
   def handle_info(
@@ -205,7 +211,7 @@ defmodule Eyepatch do
         state = %Eyepatch{inet6_connect_result: {:error, _reason2}}
       ) do
     Logger.error("IPv4 DNS failed, IPv6 connection failed: We're out of options.")
-    {:stop, :normal, {state.caller_pid, result}}
+    {:stop, :normal, {state.caller_pid, state.change_ownership, result}}
   end
 
   def handle_info(
@@ -264,7 +270,7 @@ defmodule Eyepatch do
         Logger.error("IPv4 connection failed, IPv6 DNS resolution failed: We're out of options.")
     end
 
-    {:stop, :normal, {state.caller_pid, result}}
+    {:stop, :normal, {state.caller_pid, state.change_ownership, result}}
   end
 
   def handle_info(
@@ -272,7 +278,7 @@ defmodule Eyepatch do
         state = %Eyepatch{inet6_dns_response: {:error, _}}
       ) do
     Logger.error("Both IPv4 and IPv6 DNS resolution failed: We're out of options.")
-    {:stop, :normal, {state.caller_pid, result}}
+    {:stop, :normal, {state.caller_pid, state.change_ownership, result}}
   end
 
   def handle_info(
@@ -280,7 +286,7 @@ defmodule Eyepatch do
         state = %Eyepatch{inet_dns_response: {:error, _}}
       ) do
     Logger.error("Both IPv4 and IPv6 DNS resolution failed: We're out of options.")
-    {:stop, :normal, {state.caller_pid, result}}
+    {:stop, :normal, {state.caller_pid, state.change_ownership, result}}
   end
 
   def handle_info(
@@ -310,7 +316,7 @@ defmodule Eyepatch do
         # decide how to handle this case.
     end
 
-    {:stop, :normal, {state.caller_pid, result}}
+    {:stop, :normal, {state.caller_pid, state.change_ownership, result}}
   end
 
   def handle_info(
@@ -331,7 +337,7 @@ defmodule Eyepatch do
     case result do
       {:ok, _} ->
         Logger.debug("Successfully connected via IPv6")
-        {:stop, :normal, {state.caller_pid, result}}
+        {:stop, :normal, {state.caller_pid, state.change_ownership, result}}
 
       {:error, reason} ->
         case {state.inet_dns_response, state.inet_connect_result} do
@@ -362,14 +368,14 @@ defmodule Eyepatch do
             case ipv4_result do
               {:ok, _} ->
                 Logger.debug("Successfully connected via IPv4.")
-                {:stop, :normal, {state.caller_pid, ipv4_result}}
+                {:stop, :normal, {state.caller_pid, state.change_ownership, ipv4_result}}
 
               {:error, _reason} ->
                 Logger.debug(
                   "IPv4 connection failed after IPv6 connection failed. We're out of options."
                 )
 
-                {:stop, :normal, {state.caller_pid, ipv4_result}}
+                {:stop, :normal, {state.caller_pid, state.change_ownership, ipv4_result}}
             end
 
           {result = {:error, _}, nil} ->
@@ -377,20 +383,21 @@ defmodule Eyepatch do
               "IPv4 connection failed after IPv6 DNS resolution failed. We're out of options."
             )
 
-            {:stop, :normal, {state.caller_pid, result}}
+            {:stop, :normal, {state.caller_pid, state.change_ownership, result}}
         end
     end
   end
 
   def handle_info(:timeout_exceeded, state) do
-    {:stop, :normal, {state.caller_pid, :timeout_exceeded}}
+    {:stop, :normal, {state.caller_pid, state.change_ownership, :timeout_exceeded}}
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, :normal}, state) do
     {:noreply, state}
   end
 
-  def terminate(_reason, {caller_pid, result}) do
+  def terminate(_reason, {caller_pid, change_ownership, result}) do
+    change_ownership.(caller_pid, result)
     send(caller_pid, {:eyepatch, result})
   end
 end
