@@ -10,7 +10,6 @@ defmodule Eyepatch do
             request_ipv4_fn: nil,
             request_ipv6_fn: nil,
             getaddrs: nil,
-            headers: [],
             connect_timeout: nil,
             transfer_ownership_to: nil
 
@@ -38,14 +37,13 @@ defmodule Eyepatch do
   happy eyeballs implementation.
   """
 
-  def resolve(url, request_ipv4_fn, request_ipv6_fn, getaddrs, headers, connect_timeout, transfer_ownership_to) do
+  def resolve(url, request_ipv4_fn, request_ipv6_fn, getaddrs, connect_timeout, transfer_ownership_to) do
     {:ok, pid} =
       start_link(
         url,
         request_ipv4_fn,
         request_ipv6_fn,
         getaddrs,
-        headers,
         connect_timeout,
         transfer_ownership_to,
         self()
@@ -68,7 +66,6 @@ defmodule Eyepatch do
         request_ipv4_fn,
         request_ipv6_fn,
         getaddrs,
-        headers,
         connect_timeout,
         transfer_ownership_to,
         caller_pid
@@ -79,7 +76,6 @@ defmodule Eyepatch do
         request_ipv4_fn,
         request_ipv6_fn,
         getaddrs,
-        headers,
         connect_timeout,
         transfer_ownership_to,
         caller_pid
@@ -93,7 +89,6 @@ defmodule Eyepatch do
          request_ipv4_fn,
          request_ipv6_fn,
          getaddrs,
-         headers,
          connect_timeout,
          transfer_ownership_to,
          caller_pid
@@ -107,7 +102,6 @@ defmodule Eyepatch do
       request_ipv4_fn: request_ipv4_fn,
       request_ipv6_fn: request_ipv6_fn,
       getaddrs: getaddrs,
-      headers: headers,
       connect_timeout: connect_timeout,
       transfer_ownership_to: transfer_ownership_to,
       caller_pid: caller_pid
@@ -163,7 +157,6 @@ defmodule Eyepatch do
         state.uri,
         ip_address,
         state.connect_timeout || @connection_attempt_delay,
-        state.headers,
         state.caller_pid
       )
 
@@ -191,7 +184,6 @@ defmodule Eyepatch do
         state.uri,
         ip_address,
         state.connect_timeout || @connection_attempt_delay,
-        state.headers,
         state.caller_pid
       )
 
@@ -258,7 +250,6 @@ defmodule Eyepatch do
         state.uri,
         ip_address,
         state.connect_timeout || @connection_attempt_delay,
-        state.headers,
         state.caller_pid
       )
 
@@ -302,7 +293,6 @@ defmodule Eyepatch do
         state.uri,
         ip_address,
         state.connect_timeout || @connection_attempt_delay,
-        state.headers,
         state.caller_pid
       )
 
@@ -330,7 +320,6 @@ defmodule Eyepatch do
         state.uri,
         ip_address,
         state.connect_timeout || @connection_attempt_delay,
-        state.headers,
         state.caller_pid
       )
 
@@ -361,7 +350,6 @@ defmodule Eyepatch do
                 state.uri,
                 ip_address,
                 state.connect_timeout || @connection_attempt_delay,
-                state.headers,
                 state.caller_pid
               )
 
