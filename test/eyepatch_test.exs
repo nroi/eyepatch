@@ -5,11 +5,11 @@ defmodule EyepatchTest do
 
   @json_path "https://www.archlinux.org/mirrors/status/json/"
 
-  def request_hackney_mock_ok(_uri, ip_address, protocol, connection_attempt_delay, _pid) do
+  def request_hackney_mock_ok(_uri, ip_address, protocol, _connection_attempt_delay, _pid) do
     {:ok, {protocol, ip_address, nil, []}}
   end
 
-  def request_hackney_mock_error(_uri, _ip_address, _protocol, connection_attempt_delay, _pid) do
+  def request_hackney_mock_error(_uri, _ip_address, _protocol, _connection_attempt_delay, _pid) do
     {:error, :mock}
   end
 
