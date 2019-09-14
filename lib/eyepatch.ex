@@ -199,6 +199,7 @@ defmodule Eyepatch do
     Logger.error("IPv4 DNS failed, IPv6 connection failed: We're out of options.")
     {:stop, :normal, {state.caller_pid, state.transfer_ownership_to, result}}
   end
+
   def handle_info(
         {_, {:dns_reply, {:inet, reply = {:ok, _ip_address}}}},
         state = %Eyepatch{inet6_dns_response: nil}
@@ -375,6 +376,10 @@ defmodule Eyepatch do
 
   def handle_info({:DOWN, _ref, :process, _pid, :normal}, state) do
     {:noreply, state}
+  end
+
+  def terminate(_reason, {caller_pid, _transfer_ownership_to, :timeout_exceeded}) do
+    send(caller_pid, {:eyepatch, {:error, :timeout_exceeded}})
   end
 
   def terminate(_reason, {caller_pid, transfer_ownership_to, result}) do
