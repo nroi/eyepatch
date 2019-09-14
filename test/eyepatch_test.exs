@@ -162,11 +162,13 @@ defmodule EyepatchTest do
     {:ok, {_protocol, conn_ref}} = result
     headers = [{"Host", "ident.me"}]
     req = {:get, "/", headers, ""}
+
     for _ <- 1..10 do
       {:ok, _, _, ^conn_ref} = :hackney.send_request(conn_ref, req)
       {:ok, body} = :hackney.body(conn_ref)
-      Logger.debug("Got body: #{inspect body}")
+      Logger.debug("Got body: #{inspect(body)}")
     end
+
     :ok = :hackney.close(conn_ref)
 
     Logger.info("Duration for #{url} in milliseconds: #{duration / 1000}")
@@ -239,15 +241,13 @@ defmodule EyepatchTest do
     requester_ipv4 = [
       {&request_hackney_mock_ok(&1, &2, :inet, &3, &4),
        "Connection attempt over IPv4 successful"},
-      {&request_hackney_mock_error(&1, &2, :inet, &3, &4),
-       "Connection attempt over IPv4 failed"}
+      {&request_hackney_mock_error(&1, &2, :inet, &3, &4), "Connection attempt over IPv4 failed"}
     ]
 
     requester_ipv6 = [
       {&request_hackney_mock_ok(&1, &2, :inet6, &3, &4),
        "Connection attempt over IPv6 successful"},
-      {&request_hackney_mock_error(&1, &2, :inet6, &3, &4),
-       "Connection attempt over IPv6 failed"}
+      {&request_hackney_mock_error(&1, &2, :inet6, &3, &4), "Connection attempt over IPv6 failed"}
     ]
 
     combinations =
@@ -354,21 +354,25 @@ defmodule EyepatchTest do
         {:error, :einval} -> raise("Unable to parse ip address: #{inspect(ip_address)}")
         x -> x
       end
-    Logger.debug("ip is: #{inspect ip_address}, protocol: #{protocol}")
+
+    Logger.debug("ip is: #{inspect(ip_address)}, protocol: #{protocol}")
 
     opts = [connect_timeout: connect_timeout, ssl_options: [{:verify, :verify_none}]]
-    transport = case uri.port do
-      80 -> :hackney_tcp
-      443 -> :hackney_ssl
-    end
+
+    transport =
+      case uri.port do
+        80 -> :hackney_tcp
+        443 -> :hackney_ssl
+      end
+
     case :hackney.connect(transport, ip_address, uri.port, opts) do
       {:ok, conn_ref} ->
-        Logger.debug("Successfully connected to #{uri.host} via #{inspect ip_address}")
+        Logger.debug("Successfully connected to #{uri.host} via #{inspect(ip_address)}")
         {:ok, {protocol, conn_ref}}
+
       {:error, reason} ->
         Logger.warn("Error while attempting to connect to #{uri.host}: #{inspect(reason)}")
         {:error, {protocol, reason}}
     end
   end
-
 end
